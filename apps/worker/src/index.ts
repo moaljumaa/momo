@@ -2,6 +2,7 @@ import { Worker } from "bullmq";
 import { redisConnection, type IngestJob } from "@momo/core/queue";
 import { crawlUrl, crawlPages } from "@momo/core/crawl";
 import { chunkText } from "@momo/core/chunk";
+import { cleanText, stripRepeatedLines } from "@momo/core/clean";
 import { embed } from "@momo/core/embed";
 import { prisma } from "@momo/db";
 import { insertChunks } from "@momo/db/chunks";
@@ -44,7 +45,10 @@ new Worker<IngestJob>(
         texts.push({ label: source.title, text: source.content ?? "" });
       }
 
-      const allChunks = texts.flatMap((t) => chunkText(t.text).map((content) => ({ label: t.label, content })));
+      const cleanedBodies = stripRepeatedLines(texts.map((t) => cleanText(t.text)));
+      const allChunks = texts.flatMap((t, i) =>
+        chunkText(cleanedBodies[i]!).map((content) => ({ label: t.label, content })),
+      );
       if (allChunks.length === 0) throw new Error("no text extracted");
 
       // embed in batches to keep request bodies reasonable

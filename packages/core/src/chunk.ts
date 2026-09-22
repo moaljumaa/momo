@@ -2,7 +2,11 @@
 // Good enough for v0.1; swap for a token-aware splitter later if needed.
 
 export function chunkText(text: string, targetSize = 800, overlap = 100): string[] {
-  const paragraphs = text
+  // Force a paragraph boundary before markdown headings even when the source didn't put a
+  // blank line above them, so a heading never gets stuck mid-chunk, glued to the prior section.
+  const withHeadingBreaks = text.replace(/\n(#{1,6} .+)/g, "\n\n$1");
+
+  const paragraphs = withHeadingBreaks
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean);

@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { prisma } from "@momo/db";
 import { ingestQueue } from "@momo/core/queue";
+import { ocrPdf } from "@momo/core/ocr";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
@@ -84,15 +85,31 @@ export async function POST(req: NextRequest) {
     console.error(`[sources/upload] extraction failed for "${file.name}" (${ext}):`, err);
     return NextResponse.json({ error: await extractErrorMessage(err, ext) }, { status: 400 });
   }
+
+  let summary: string | undefined;
+
+  // No selectable text — likely a scanned/image PDF. Fall back to a vision-model OCR pass
+  // rather than rejecting outright; only reached for PDFs since .doc/.docx/.txt are never
+  // image-based.
+  if (!text && ext === ".pdf") {
+    try {
+      const ocr = await ocrPdf(buffer);
+      text = ocr.pages.join("\n\n").trim();
+      summary = ocr.summary || undefined;
+    } catch (err) {
+      console.error(`[sources/upload] OCR fallback failed for "${file.name}":`, err);
+    }
+  }
+
   if (!text) {
     return NextResponse.json(
-      { error: ext === ".pdf" ? "no selectable text found — is this a scanned image?" : "no readable text found" },
+      { error: ext === ".pdf" ? "no readable text found, even with OCR — is this page blank or unreadable?" : "no readable text found" },
       { status: 400 },
     );
   }
 
   const source = await prisma.source.create({
-    data: { type: "FILE", title: file.name, content: text, status: "PENDING" },
+    data: { type: "FILE", title: file.name, content: text, summary, status: "PENDING" },
   });
 
   try {
