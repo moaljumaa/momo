@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ChannelIcon, CHANNEL_LABEL, type ChannelKind } from "./ChannelIcon";
+import { DeployButton } from "./DeployButton";
 
 type Settings = {
   name: string;
@@ -26,13 +27,10 @@ export default function ChannelsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [deployOpen, setDeployOpen] = useState(false);
   const [domainsOpen, setDomainsOpen] = useState(false);
   const [domainsText, setDomainsText] = useState("");
-  const [origin, setOrigin] = useState("");
 
   useEffect(() => {
-    setOrigin(window.location.origin);
     fetch("/api/settings")
       .then((r) => r.json())
       .then((d: { settings: Settings }) => {
@@ -64,13 +62,7 @@ export default function ChannelsPage() {
     save({ widgetAllowedDomains: domains });
   }
 
-  async function enableWidget() {
-    await save({ widgetEnabled: true });
-  }
-
   if (!settings) return null;
-
-  const embedSnippet = `<script src="${origin}/widget.js" data-api-base="${origin}"></script>`;
 
   return (
     <div className="flex h-screen flex-col overflow-hidden p-8">
@@ -112,9 +104,7 @@ export default function ChannelsPage() {
                 <Button variant="outline" className="rounded-full px-4" render={<Link href="/playground" />}>
                   Configure
                 </Button>
-                <Button onClick={() => setDeployOpen(true)} className="rounded-full px-4">
-                  Deploy
-                </Button>
+                <DeployButton />
               </>
             )}
           </div>
@@ -136,42 +126,6 @@ export default function ChannelsPage() {
             onChange={(e) => setDomainsText(e.target.value)}
             onBlur={saveDomains}
           />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={deployOpen} onOpenChange={setDeployOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Deploy website widget</DialogTitle>
-            <DialogDescription>Embed a floating chat widget on any website.</DialogDescription>
-          </DialogHeader>
-
-          {!settings.widgetEnabled ? (
-            <div className="flex flex-col items-center gap-4 py-10 text-center">
-              <p className="text-sm font-light text-soft">
-                The widget is turned off. Enable it to get your embed code.
-              </p>
-              <Button onClick={enableWidget} className="rounded-full px-5">
-                Enable website widget
-              </Button>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              <div className="text-xs font-normal text-soft">
-                Paste this code before the closing <code>&lt;/body&gt;</code> tag on your site.
-              </div>
-              <pre className="overflow-x-auto rounded-[1rem] border border-edge bg-well p-4 text-xs font-light">
-                <code>{embedSnippet}</code>
-              </pre>
-              <Button
-                variant="outline"
-                onClick={() => navigator.clipboard.writeText(embedSnippet)}
-                className="self-start rounded-full px-4"
-              >
-                Copy
-              </Button>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </div>

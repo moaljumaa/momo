@@ -11,6 +11,7 @@ type Msg = {
 type Config = {
   name: string;
   widgetColor: string | null;
+  widgetPosition: "center" | "corner";
   welcomeMessage: string;
   placeholder: string;
   suggestedQuestions: string[];
@@ -68,6 +69,13 @@ export function App({ apiBase }: { apiBase: string }) {
     inputRef.current?.blur();
   }
 
+  function restart() {
+    setMessages([]);
+    setConversationId(undefined);
+    sessionStorage.removeItem(STORAGE_KEY);
+    inputRef.current?.focus();
+  }
+
   async function send(text: string) {
     if (!text.trim() || sending || !config) return;
     expand();
@@ -106,11 +114,26 @@ export function App({ apiBase }: { apiBase: string }) {
   // Nothing to embed if the channel is disabled or the origin isn't allowlisted.
   if (config === null) return null;
 
+  const corner = config.widgetPosition === "corner";
+
+  if (corner && !open) {
+    return (
+      <button type="button" class="momo-dock momo-launcher" onClick={expand} aria-label={`Open ${config.name} chat`}>
+        {config.logoUrl ? <img src={config.logoUrl} alt="" /> : <span class="momo-launcher-dot" />}
+      </button>
+    );
+  }
+
   return (
-    <div class={`momo-dock${open ? " momo-open" : ""}`} role="dialog" aria-label={config.name}>
+    <div class={`momo-dock${open ? " momo-open" : ""}${corner ? " momo-corner" : ""}`} role="dialog" aria-label={config.name}>
       <div class="momo-top">
         {config.logoUrl && <img class="momo-logo" src={config.logoUrl} alt="" />}
         <span>{config.name}</span>
+        {messages.length > 0 && (
+          <button type="button" class="momo-restart" onClick={restart} aria-label="Restart chat">
+            Restart
+          </button>
+        )}
         <button type="button" class="momo-close" onClick={close} aria-label="Close">
           Close
         </button>

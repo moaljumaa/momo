@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
       config: {
         name: settings.name,
         widgetColor: settings.widgetColor,
+        widgetPosition: settings.widgetPosition,
         welcomeMessage: settings.welcomeMessage,
         placeholder: settings.placeholder,
         suggestedQuestions: settings.suggestedQuestions as string[],

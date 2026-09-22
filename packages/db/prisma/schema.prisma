@@ -89,6 +89,9 @@ model Settings {
   // falls back to the CHAT_MODEL env var when unset.
   model               String  @default("openai/gpt-4o-mini")
   widgetColor         String?
+  // Launcher placement on the embedding site: "center" (quiet bottom pill, expands full-screen)
+  // or "corner" (classic bottom-right bubble, expands into an anchored panel).
+  widgetPosition       String  @default("center")
   widgetEnabled        Boolean @default(false)
   widgetAllowedDomains Json    @default("[]")
   rateLimitCount      Int     @default(20)
@@ -133,6 +136,7 @@ model Source {
   crawlProgress Json?
   status       SourceStatus @default(PENDING)
   error        String?
+  summary      String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   chunks       Chunk[]
@@ -147,6 +151,7 @@ model Chunk {
   // per-page crawled content instead of one undifferentiated blob. Null for FILE/QA/TEXT.
   label     String?
   embedding Unsupported("vector(1536)")?
+  searchVector Unsupported("tsvector")?
   createdAt DateTime                     @default(now())
 
   @@index([sourceId])

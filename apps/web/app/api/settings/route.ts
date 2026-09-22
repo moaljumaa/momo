@@ -25,6 +25,7 @@ export async function PATCH(req: NextRequest) {
     "threshold",
     "model",
     "widgetColor",
+    "widgetPosition",
     "widgetEnabled",
     "widgetAllowedDomains",
     "rateLimitCount",

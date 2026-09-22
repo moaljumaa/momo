@@ -45,6 +45,26 @@ button { font: inherit; cursor: pointer; }
   border-radius: 0;
 }
 
+/* Corner: a round bottom-right bubble launcher that opens into an anchored panel
+   (not a full-screen takeover, unlike the center position's quiet-pill dock). */
+.momo-launcher {
+  left: auto; right: 20px; bottom: 20px; transform: none;
+  width: 60px; height: 60px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; background: var(--ember); padding: 0;
+  transition: background .15s var(--ease-enter);
+}
+.momo-launcher:hover { background: var(--ember-deep); }
+.momo-launcher img { width: 30px; height: 30px; border-radius: 50%; object-fit: contain; }
+.momo-launcher-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--sheet); }
+
+.momo-dock.momo-corner.momo-open {
+  width: min(400px, calc(100vw - 32px));
+  height: min(640px, calc(100vh - 40px));
+  right: 20px; bottom: 20px;
+  border-radius: 20px;
+}
+
 .momo-top {
   height: 0;
   overflow: hidden;
@@ -61,10 +81,11 @@ button { font: inherit; cursor: pointer; }
 .momo-open .momo-top { height: 64px; opacity: 1; }
 .momo-top span { flex: 1; }
 .momo-logo { width: 20px; height: 20px; border-radius: 30px; object-fit: contain; }
-.momo-close {
+.momo-close, .momo-restart {
   background: none; border: 0; color: var(--ink); font-size: 13px; font-weight: 300;
   padding: 6px 0; border-bottom: 1px solid var(--line);
 }
+.momo-restart { color: var(--soft); margin-right: 16px; }
 
 .momo-log { overflow: auto; opacity: 0; transition: opacity .6s .4s; }
 .momo-open .momo-log { opacity: 1; }
