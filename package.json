@@ -1,0 +1,16 @@
+{
+  "name": "momo",
+  "private": true,
+  "packageManager": "pnpm@10.34.4",
+  "scripts": {
+    "dev": "docker compose up",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "turbo": "^2.11.2",
+    "typescript": "^6.0.3"
+  }
+}

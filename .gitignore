@@ -1,0 +1,17 @@
+node_modules
+.pnpm-store
+.next
+dist
+.turbo
+.env
+.env.*
+!.env.example
+apps/web/uploads
+apps/web/public/uploads
+
+# internal / engineering-only, never committed to open core
+.claude
+docs
+CLAUDE.md
+PROJECT.md
+design

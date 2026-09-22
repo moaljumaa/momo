@@ -1,0 +1,229 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+// ---- Auth (Better Auth) ----
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          Role      @default(HUMAN_AGENT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  tickets       Ticket[]
+  messages      Message[]
+
+  @@map("user")
+}
+
+enum Role {
+  ADMIN
+  HUMAN_AGENT
+  AI_AGENT
+}
+
+model Session {
+  id        String   @id
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}
+
+// ---- Bot settings (single row) ----
+
+model Settings {
+  id                 Int     @id @default(1)
+  name               String  @default("Support")
+  systemPrompt       String  @default("")
+  tone                String  @default("friendly")
+  threshold           Float   @default(0.7)
+  // OpenRouter model id (e.g. "openai/gpt-4o-mini") — picked on the Instructions page,
+  // falls back to the CHAT_MODEL env var when unset.
+  model               String  @default("openai/gpt-4o-mini")
+  widgetColor         String?
+  widgetEnabled        Boolean @default(false)
+  widgetAllowedDomains Json    @default("[]")
+  rateLimitCount      Int     @default(20)
+  rateLimitWindowSec  Int     @default(240)
+  rateLimitMessage    String  @default("Too many messages in a row.")
+
+  // Widget content + branding — AI-drafted from the first source during onboarding, editable after.
+  welcomeMessage      String  @default("Hi! Ask me anything.")
+  placeholder         String  @default("Ask me anything")
+  suggestedQuestions  Json    @default("[]")
+  logoUrl             String?
+  faviconUrl          String?
+}
+
+// ---- Knowledge ----
+
+enum SourceType {
+  URL
+  FILE
+  QA
+  TEXT
+}
+
+enum SourceStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+model Source {
+  id           String       @id @default(cuid())
+  type         SourceType
+  title        String
+  url          String?
+  content      String?
+  // For type URL: the specific pages the user picked in the discovery step (max 10).
+  // Worker crawls exactly these instead of re-discovering the sitemap.
+  selectedUrls Json?
+  // Per-page crawl status the worker updates as it goes: [{ url, status: "pending"|"done"|"failed" }].
+  // Lets the add-website flow show live progress per page instead of one blind spinner.
+  crawlProgress Json?
+  status       SourceStatus @default(PENDING)
+  error        String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  chunks       Chunk[]
+}
+
+model Chunk {
+  id        String                       @id @default(cuid())
+  sourceId  String
+  source    Source                       @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  content   String
+  // For URL sources: the specific page this chunk came from, so the sources UI can show
+  // per-page crawled content instead of one undifferentiated blob. Null for FILE/QA/TEXT.
+  label     String?
+  embedding Unsupported("vector(1536)")?
+  createdAt DateTime                     @default(now())
+
+  @@index([sourceId])
+}
+
+// ---- Conversations ----
+
+enum ConversationStatus {
+  AI
+  NEEDS_HUMAN
+  HUMAN
+  RESOLVED
+}
+
+model Contact {
+  id            String         @id @default(cuid())
+  email         String?        @unique
+  name          String?
+  createdAt     DateTime       @default(now())
+  conversations Conversation[]
+}
+
+model Conversation {
+  id        String             @id @default(cuid())
+  contactId String?
+  contact   Contact?           @relation(fields: [contactId], references: [id])
+  status    ConversationStatus @default(AI)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  messages  Message[]
+  ticket    Ticket?
+
+  @@index([status, updatedAt])
+}
+
+enum MessageRole {
+  VISITOR
+  AI
+  AGENT
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           MessageRole
+  content        String
+  confidence     Float?
+  sources        Json?
+  agentId        String?
+  agent          User?        @relation(fields: [agentId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+model Ticket {
+  id             String       @id @default(cuid())
+  conversationId String       @unique
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  status         TicketStatus @default(OPEN)
+  priority       Priority     @default(NORMAL)
+  assigneeId     String?
+  assignee       User?        @relation(fields: [assigneeId], references: [id])
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}

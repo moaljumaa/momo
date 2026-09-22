@@ -1,0 +1,1 @@
+{"name":"@momo/widget","private":true,"scripts":{"dev":"vite build --watch","build":"vite build","typecheck":"tsc --noEmit"},"dependencies":{"preact":"^10.29.8"},"devDependencies":{"@preact/preset-vite":"^2.10.6","vite":"^8.3.0"}}

@@ -1,0 +1,12 @@
+FROM node:22-slim
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/* && corepack enable
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json apps/web/
+COPY apps/worker/package.json apps/worker/
+COPY packages/db/package.json packages/db/
+COPY packages/core/package.json packages/core/
+COPY packages/widget/package.json packages/widget/
+COPY packages/db/prisma packages/db/prisma
+COPY packages/db/prisma.config.ts packages/db/
+RUN pnpm install --frozen-lockfile && pnpm --filter @momo/db generate

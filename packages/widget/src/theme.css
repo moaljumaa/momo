@@ -1,0 +1,128 @@
+/* Mist tokens for the widget (shadow DOM). Keep in sync with apps/web/app/globals.css and docs/design.md. */
+:host {
+  --bg: #E3DCC9; --sheet: #F2EDE0; --well: #D9CEB5; --ink: #23262B; --soft: #7B7F84; --faint: #A9ACAF;
+  --line: #CBBFA0; --edge: #B7A67F; --hover: #D6CBAF; --sky: #7C9DB8; --sky-deep: #5F84A0; --wheat: #D2BC80; --clay: #C99A8A;
+  --ember: #D9542F; --ember-deep: #B8431F;
+  --ease-expand: cubic-bezier(.7, 0, .2, 1); --ease-enter: cubic-bezier(.2, .7, .2, 1);
+  font-family: Onest, system-ui, sans-serif; font-weight: 300; color: var(--ink);
+  all: initial;
+}
+:host([data-theme="dark"]) {
+  --bg: #1A1712; --sheet: #221E17; --well: #17140F; --ink: #ECEAE5; --soft: #9A9EA3; --faint: #63676C;
+  --line: #322C21; --edge: #4A4030; --hover: #2A251C; --sky: #8FB0CB; --sky-deep: #6F93AF; --wheat: #D6C285; --clay: #D2A090;
+  --ember: #E37354; --ember-deep: #C85A3A;
+}
+@media (prefers-reduced-motion: reduce) { * { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+
+* { box-sizing: border-box; margin: 0; font-family: Onest, system-ui, sans-serif; color: var(--ink); }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; }
+
+/* Closed: a quiet bottom pill (the input bar). Open: full-screen centered conversation. */
+.momo-dock {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  width: min(480px, calc(100vw - 32px));
+  height: 60px;
+  transform: translateX(-50%);
+  background: var(--sheet);
+  border-radius: 30px;
+  box-shadow: 0 0 0 1px var(--line), 0 12px 40px -14px rgba(35, 38, 43, .35);
+  z-index: 2147483000;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+  transition:
+    bottom .8s var(--ease-expand), width .8s var(--ease-expand),
+    height .8s var(--ease-expand), border-radius .8s var(--ease-expand);
+}
+.momo-dock.momo-open {
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  border-radius: 0;
+}
+
+.momo-top {
+  height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 clamp(20px, 6vw, 60px);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--soft);
+  opacity: 0;
+  transition: height .6s .3s, opacity .6s .4s;
+}
+.momo-open .momo-top { height: 64px; opacity: 1; }
+.momo-top span { flex: 1; }
+.momo-logo { width: 20px; height: 20px; border-radius: 30px; object-fit: contain; }
+.momo-close {
+  background: none; border: 0; color: var(--ink); font-size: 13px; font-weight: 300;
+  padding: 6px 0; border-bottom: 1px solid var(--line);
+}
+
+.momo-log { overflow: auto; opacity: 0; transition: opacity .6s .4s; }
+.momo-open .momo-log { opacity: 1; }
+.momo-col {
+  width: min(640px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 5vh 0 24px;
+  display: grid;
+  gap: 28px;
+}
+
+.momo-hello p { font-size: clamp(22px, 3.4vw, 30px); line-height: 1.25; letter-spacing: -.02em; font-weight: 300; }
+.momo-sug { display: grid; gap: 2px; margin-top: 20px; }
+.momo-sug button {
+  background: none; border: 0; text-align: left; color: var(--soft); font-size: 15px; font-weight: 300;
+  padding: 8px 0; border-bottom: 1px solid var(--line); transition: color .3s, padding-left .3s;
+}
+.momo-sug button:hover { color: var(--ink); padding-left: 8px; }
+
+.momo-u { align-self: flex-end; justify-self: end; color: var(--soft); font-size: 15px; font-weight: 300; text-align: right; }
+.momo-a p { font-size: clamp(19px, 2.4vw, 23px); line-height: 1.4; letter-spacing: -.01em; font-weight: 300; }
+.momo-meta {
+  display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin-top: 12px;
+  font-size: 13px; color: var(--soft);
+}
+.momo-meta a { border-bottom: 1px solid var(--line); transition: color .3s, border-color .3s; }
+.momo-meta a:hover { color: var(--ink); border-color: var(--ink); }
+.momo-dot { display: inline-block; width: 6px; height: 6px; border-radius: 30px; margin-right: 6px; }
+.momo-dot-sky { background: var(--sky); }
+.momo-dot-wheat { background: var(--wheat); }
+.momo-dot-clay { background: var(--clay); }
+
+.momo-think { display: flex; gap: 6px; padding: 4px 0; }
+.momo-think i { width: 6px; height: 6px; border-radius: 30px; background: var(--soft); animation: momo-bounce 1.1s infinite; }
+.momo-think i:nth-child(2) { animation-delay: .15s; }
+.momo-think i:nth-child(3) { animation-delay: .3s; }
+@keyframes momo-bounce { 50% { opacity: .2; transform: translateY(-3px); } }
+
+.momo-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 10px 0 20px; height: 60px; margin: 0;
+}
+.momo-open .momo-bar {
+  width: min(640px, calc(100% - 40px));
+  margin: 0 auto 24px;
+  background: var(--well);
+  border: 1px solid var(--edge);
+  border-radius: 30px;
+}
+.momo-bar input {
+  flex: 1; min-width: 0; border: 0; outline: 0; background: none;
+  font: 300 14px Onest, sans-serif; color: var(--ink); height: 100%;
+}
+.momo-open .momo-bar input { font-size: 15px; }
+.momo-bar input::placeholder { color: var(--faint); }
+.momo-bar button {
+  height: 36px; padding: 0 16px; border-radius: 20px; border: 0;
+  background: var(--ember); color: var(--sheet); font-size: 13px; font-weight: 400;
+  transition: background .15s var(--ease-enter);
+}
+.momo-bar button:hover { background: var(--ember-deep); }
