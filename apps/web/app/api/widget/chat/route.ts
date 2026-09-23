@@ -11,6 +11,59 @@ const cors = {
   "Access-Control-Allow-Headers": "content-type",
 };
 
+type Conversation = NonNullable<Awaited<ReturnType<typeof prisma.conversation.findUnique>>>;
+
+// Picks a random human to own an escalated conversation. Deliberately random, not
+// round-robin/least-busy — there's no workload data to base a smarter pick on yet, and this
+// is a single-tenant app so the team is small.
+async function pickRandomAgent() {
+  const agents = await prisma.user.findMany({ where: { role: { in: ["ADMIN", "HUMAN_AGENT"] } } });
+  if (agents.length === 0) return null;
+  return agents[Math.floor(Math.random() * agents.length)];
+}
+
+// Finalizes a handoff once every required field has been collected: assigns a random human,
+// links/creates a Contact from the collected email/name, and writes an agent-only summary.
+async function finalizeHandoff(conversation: Conversation, reason: string, collectedFields: Record<string, string>) {
+  const agent = await pickRandomAgent();
+
+  // Field keys are slugified from whatever free-text label the admin chose (e.g. "Email
+  // address" -> "email_address"), so match by shape/substring instead of an exact "email"/
+  // "name" key — otherwise Contact linking silently breaks for any label that isn't literally
+  // "Email" or "Name".
+  let contactId = conversation.contactId;
+  const emailEntry = Object.values(collectedFields).find((v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()));
+  const nameEntry = Object.entries(collectedFields).find(([key]) => /name/i.test(key))?.[1];
+  const email = emailEntry?.trim();
+  if (email) {
+    const contact = await prisma.contact.upsert({
+      where: { email },
+      update: { name: nameEntry?.trim() || undefined },
+      create: { email, name: nameEntry?.trim() || null },
+    });
+    contactId = contact.id;
+  }
+
+  const summaryLines = [`Visitor asked: "${reason}"`, "", "Collected info:"];
+  for (const [key, value] of Object.entries(collectedFields)) summaryLines.push(`- ${key}: ${value}`);
+
+  await prisma.conversation.update({
+    where: { id: conversation.id },
+    data: {
+      status: "NEEDS_HUMAN",
+      assigneeId: agent?.id ?? null,
+      contactId,
+      pendingFieldKey: null,
+      handoffSummary: summaryLines.join("\n"),
+    },
+  });
+  await prisma.ticket.upsert({
+    where: { conversationId: conversation.id },
+    update: {},
+    create: { conversationId: conversation.id, status: "OPEN", priority: "NORMAL" },
+  });
+}
+
 // Public, unauthenticated — this is the widget's own endpoint, separate from the
 // session-gated /api/chat used by the admin Playground. Guardrail identity here is
 // per-conversation (same rate-limit window as Playground); a new widget session
@@ -91,6 +144,56 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  // A human (or a human's own hand-back-to-AI action) owns this conversation now — the AI
+  // stays out of it entirely. The visitor's message is saved and pushed live to the agent
+  // above; no reply is generated here.
+  if (activeConversation.status === "NEEDS_HUMAN" || activeConversation.status === "HUMAN") {
+    return NextResponse.json({ conversationId: activeConversation.id, message: null, silent: true }, { headers: cors });
+  }
+
+  // Mid field-collection: this message is the answer to pendingFieldKey, not a new question.
+  if (activeConversation.status === "PENDING_HANDOFF" && activeConversation.pendingFieldKey) {
+    const collectedFields = { ...((activeConversation.collectedFields as Record<string, string> | null) ?? {}) };
+    collectedFields[activeConversation.pendingFieldKey] = message.trim();
+
+    const fields = await prisma.handoffField.findMany({ where: { required: true }, orderBy: { order: "asc" } });
+    const nextField = fields.find((f) => !collectedFields[f.key]);
+
+    let replyContent: string;
+    if (nextField) {
+      await prisma.conversation.update({
+        where: { id: activeConversation.id },
+        data: { collectedFields, pendingFieldKey: nextField.key },
+      });
+      replyContent = `Thanks. And your ${nextField.label.toLowerCase()}?`;
+    } else {
+      const reason = (activeConversation.handoffSummary?.match(/^Visitor asked: "(.*)"$/)?.[1]) || message;
+      await finalizeHandoff(activeConversation, reason, collectedFields);
+      replyContent = "Thanks — I've got everything I need. Connecting you with our team now.";
+    }
+
+    const aiMessage = await prisma.message.create({
+      data: { conversationId: activeConversation.id, role: "AI", content: replyContent },
+    });
+    publish({
+      type: "message",
+      conversationId: activeConversation.id,
+      isNewConversation: false,
+      message: {
+        id: aiMessage.id,
+        role: "AI",
+        content: aiMessage.content,
+        confidence: null,
+        createdAt: aiMessage.createdAt.toISOString(),
+        agent: null,
+      },
+    });
+    return NextResponse.json(
+      { conversationId: activeConversation.id, message: { id: aiMessage.id, role: "AI", content: replyContent, confidence: null } },
+      { headers: cors },
+    );
+  }
+
   const result = await respond({
     question: message,
     systemPrompt: settings.systemPrompt,
@@ -98,22 +201,29 @@ export async function POST(req: NextRequest) {
     model: settings.model,
   });
 
+  let replyContent = result.content;
+
   if (result.handoff) {
-    await prisma.conversation.update({ where: { id: activeConversation.id }, data: { status: "NEEDS_HUMAN" } });
-    await prisma.ticket.upsert({
-      where: { conversationId: activeConversation.id },
-      update: {},
-      create: { conversationId: activeConversation.id, status: "OPEN", priority: "NORMAL" },
-    });
+    const fields = await prisma.handoffField.findMany({ where: { required: true }, orderBy: { order: "asc" } });
+    if (fields.length > 0) {
+      // Don't hand off yet — collect the required fields first, one at a time.
+      await prisma.conversation.update({
+        where: { id: activeConversation.id },
+        data: { status: "PENDING_HANDOFF", pendingFieldKey: fields[0].key, handoffSummary: `Visitor asked: "${message}"` },
+      });
+      replyContent = `I'm not sure about that — let me get you to our team. First, what's your ${fields[0].label.toLowerCase()}?`;
+    } else {
+      await finalizeHandoff(activeConversation, message, {});
+    }
   }
 
   const aiMessage = await prisma.message.create({
     data: {
       conversationId: activeConversation.id,
       role: "AI",
-      content: result.content,
-      confidence: result.confidence,
-      sources: result.sources,
+      content: replyContent,
+      confidence: result.handoff ? null : result.confidence,
+      sources: result.handoff ? undefined : result.sources,
     },
   });
   publish({

@@ -1,13 +1,16 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@momo/db";
 import { originAllowed } from "@/lib/widget-origin";
-import { conversationEvents, type ConversationEvent } from "@/lib/conversation-events";
+import { conversationEvents, publish, type ConversationEvent } from "@/lib/conversation-events";
 import { sseResponse } from "@/lib/sse";
+import { markConnected, markDisconnected, getPresence } from "@/lib/presence";
 
 export const runtime = "nodejs";
 
 // Public, unauthenticated (same trust model as /api/widget/chat): lets a visitor's widget
-// hear about an agent's reply and typing status live, without polling.
+// hear about an agent's reply and typing status live, without polling. Doubles as the
+// visitor's presence signal — the admin sidebar shows "online" for as long as this stream
+// stays open, and "last seen" from the moment it closes.
 export async function GET(req: NextRequest) {
   const conversationId = req.nextUrl.searchParams.get("conversationId");
   if (!conversationId) return new Response("conversationId is required", { status: 400 });
@@ -19,9 +22,22 @@ export async function GET(req: NextRequest) {
   return sseResponse(
     (send) => {
       const channel = `conversation:${conversationId}`;
-      const handler = (event: ConversationEvent) => send(event);
+      // Only forward events meant for the visitor: an agent's reply/typing, never the
+      // visitor's own typing signal echoing back through the same per-conversation channel.
+      const handler = (event: ConversationEvent) => {
+        if (event.type === "typing" && event.source !== "agent") return;
+        if (event.type === "presence") return;
+        send(event);
+      };
       conversationEvents.on(channel, handler);
-      return () => conversationEvents.off(channel, handler);
+      markConnected(conversationId);
+      publish({ type: "presence", conversationId, ...getPresence(conversationId) });
+
+      return () => {
+        conversationEvents.off(channel, handler);
+        markDisconnected(conversationId);
+        publish({ type: "presence", conversationId, ...getPresence(conversationId) });
+      };
     },
     { "Access-Control-Allow-Origin": "*" },
   );

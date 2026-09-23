@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, type ReactNode } from "react";
 
-export type SettingsTab = "sources" | "channels" | "team";
+export type SettingsTab = "sources" | "channels" | "team" | "handoff";
 
 type Ctx = {
   tab: SettingsTab | null;

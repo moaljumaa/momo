@@ -44,6 +44,21 @@ export function App({ apiBase }: { apiBase: string }) {
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<number | undefined>(undefined);
+  const lastTypingSentRef = useRef(0);
+  const conversationIdRef = useRef<string | undefined>(conversationId);
+  conversationIdRef.current = conversationId;
+
+  function notifyTyping() {
+    if (!conversationIdRef.current) return;
+    const now = Date.now();
+    if (now - lastTypingSentRef.current < 1200) return;
+    lastTypingSentRef.current = now;
+    fetch(`${apiBase}/api/widget/typing`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ conversationId: conversationIdRef.current }),
+    });
+  }
 
   useEffect(() => {
     fetch(`${apiBase}/api/widget/config`)
@@ -135,16 +150,20 @@ export function App({ apiBase }: { apiBase: string }) {
         setConversationId(data.conversationId);
         sessionStorage.setItem(STORAGE_KEY, data.conversationId);
       }
-      setMessages((m) => [
-        ...m,
-        {
-          role: "AI",
-          content: data.message.content,
-          confidence: data.message.confidence,
-          sources: data.message.sources,
-          handoff: data.handoff,
-        },
-      ]);
+      // A human owns this conversation now — no AI reply comes back. The agent's response
+      // arrives later over the SSE channel (see the effect above).
+      if (data.message) {
+        setMessages((m) => [
+          ...m,
+          {
+            role: "AI",
+            content: data.message.content,
+            confidence: data.message.confidence,
+            sources: data.message.sources,
+            handoff: data.handoff,
+          },
+        ]);
+      }
     } catch {
       setMessages((m) => [...m, { role: "AI", content: "Something went wrong. Please try again." }]);
     } finally {
@@ -165,8 +184,16 @@ export function App({ apiBase }: { apiBase: string }) {
     );
   }
 
+  // Ambient "life" glow: a quiet signal that someone (AI or a human agent) is active on
+  // the other end, whether or not the panel is open yet.
+  const ambient = sending || !!agentTyping;
+
   return (
-    <div class={`momo-dock${open ? " momo-open" : ""}${corner ? " momo-corner" : ""}`} role="dialog" aria-label={config.name}>
+    <div
+      class={`momo-dock${open ? " momo-open" : ""}${corner ? " momo-corner" : ""}${ambient ? " momo-ambient" : ""}`}
+      role="dialog"
+      aria-label={config.name}
+    >
       <div class="momo-top">
         {config.logoUrl && <img class="momo-logo" src={config.logoUrl} alt="" />}
         <span>{config.name}</span>
@@ -251,7 +278,10 @@ export function App({ apiBase }: { apiBase: string }) {
         <input
           ref={inputRef}
           value={input}
-          onInput={(e) => setInput((e.target as HTMLInputElement).value)}
+          onInput={(e) => {
+            setInput((e.target as HTMLInputElement).value);
+            notifyTyping();
+          }}
           onFocus={expand}
           placeholder={config.placeholder}
           aria-label={config.placeholder}

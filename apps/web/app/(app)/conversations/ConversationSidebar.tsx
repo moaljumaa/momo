@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Plus, X } from "lucide-react";
 
 type User = { id: string; name: string; image: string | null };
@@ -11,12 +12,13 @@ type Contact = { id: string; name: string | null; email: string | null } | null;
 
 export type ConversationDetail = {
   id: string;
-  status: "AI" | "NEEDS_HUMAN" | "HUMAN" | "RESOLVED";
+  status: "AI" | "PENDING_HANDOFF" | "NEEDS_HUMAN" | "HUMAN" | "RESOLVED";
   priority: "LOW" | "NORMAL" | "HIGH" | null;
   assignee: User | null;
   participants: User[];
   labels: Label[];
   contact: Contact;
+  handoffSummary: string | null;
   visitorCountry: string | null;
   visitorCity: string | null;
   visitorIp: string | null;
@@ -52,22 +54,39 @@ function parseUserAgent(ua: string | null) {
   return `${browser} on ${os}`;
 }
 
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const min = Math.round(diff / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.round(hr / 24)}d ago`;
+}
+
 export function ConversationSidebar({
   conversation,
   previous,
   agents,
+  presence,
   onUpdate,
   onOpenPrevious,
+  onResolve,
+  onDelete,
 }: {
   conversation: ConversationDetail;
   previous: { id: string; createdAt: string; status: string }[];
   agents: User[];
+  presence?: { online: boolean; lastSeenAt: string | null };
   onUpdate: (patch: {
+    status?: "AI" | "PENDING_HANDOFF" | "NEEDS_HUMAN" | "HUMAN" | "RESOLVED";
     assigneeId?: string | null;
     priority?: "LOW" | "NORMAL" | "HIGH" | null;
     labelIds?: string[];
   }) => void;
   onOpenPrevious: (id: string) => void;
+  onResolve: () => void;
+  onDelete: () => void;
 }) {
   const [labels, setLabels] = useState<Label[]>([]);
   const [labelPicker, setLabelPicker] = useState(false);
@@ -106,23 +125,52 @@ export function ConversationSidebar({
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-6">
       <Section title="Contact">
         <div className="flex items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-hover text-sm font-normal">
+          <div className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-hover text-sm font-normal">
             {visitorName.slice(0, 1).toUpperCase()}
+            <span
+              className={`absolute right-0 bottom-0 size-2.5 rounded-full border-2 border-sheet ${
+                presence?.online ? "bg-sky" : "bg-faint"
+              }`}
+            />
           </div>
           <div className="min-w-0">
             <div className="truncate text-sm font-normal">{visitorName}</div>
             {conversation.contact?.email && (
               <div className="truncate text-xs font-light text-faint">{conversation.contact.email}</div>
             )}
+            <div className="text-xs font-light text-faint">
+              {presence?.online ? "Online now" : presence?.lastSeenAt ? `Last seen ${timeAgo(presence.lastSeenAt)}` : "Offline"}
+            </div>
           </div>
         </div>
       </Section>
 
+      {conversation.handoffSummary && (
+        <Section title="Handoff summary">
+          <pre className="whitespace-pre-wrap font-sans text-xs font-light text-soft">{conversation.handoffSummary}</pre>
+        </Section>
+      )}
+
       <Section title="Conversation actions">
+        <div className="flex gap-2">
+          {conversation.status !== "RESOLVED" && (
+            <Button onClick={onResolve} className="h-8 flex-1 rounded-full text-xs">
+              Resolve
+            </Button>
+          )}
+          <Button
+            onClick={onDelete}
+            className="h-8 flex-1 rounded-full border border-clay/40 bg-transparent text-xs text-clay hover:bg-clay/10"
+          >
+            Delete
+          </Button>
+        </div>
         <Field label="Assigned agent">
           <Select
             value={conversation.assignee?.id ?? "ai"}
-            onValueChange={(v) => onUpdate({ assigneeId: v === "ai" ? null : v })}
+            onValueChange={(v) =>
+              onUpdate(v === "ai" ? { assigneeId: null, status: "AI" } : { assigneeId: v })
+            }
           >
             <SelectTrigger className="h-9 w-full">
               <SelectValue>{(v: string) => (v === "ai" ? "AI Agent" : agents.find((a) => a.id === v)?.name)}</SelectValue>

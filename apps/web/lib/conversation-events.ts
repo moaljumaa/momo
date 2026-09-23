@@ -18,7 +18,9 @@ export type ConversationEvent =
         agent: { id: string; name: string } | null;
       };
     }
-  | { type: "typing"; conversationId: string; agentName: string };
+  | { type: "typing"; conversationId: string; source: "agent"; agentId: string; agentName: string }
+  | { type: "typing"; conversationId: string; source: "visitor" }
+  | { type: "presence"; conversationId: string; online: boolean; lastSeenAt: string | null };
 
 const g = globalThis as unknown as { momoConversationEvents?: EventEmitter };
 export const conversationEvents = g.momoConversationEvents ?? new EventEmitter().setMaxListeners(0);

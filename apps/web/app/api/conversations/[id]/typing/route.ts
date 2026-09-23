@@ -10,6 +10,6 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  publish({ type: "typing", conversationId: id, agentName: session.user.name });
+  publish({ type: "typing", conversationId: id, source: "agent", agentId: session.user.id, agentName: session.user.name });
   return NextResponse.json({ ok: true });
 }

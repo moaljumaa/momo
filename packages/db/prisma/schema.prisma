@@ -163,6 +163,9 @@ model Chunk {
 
 enum ConversationStatus {
   AI
+  // AI has asked for admin-configured required fields (name/email/…) and is waiting on the
+  // visitor's next reply to answer them, one at a time, before it can hand off to a human.
+  PENDING_HANDOFF
   NEEDS_HUMAN
   HUMAN
   RESOLVED
@@ -174,6 +177,17 @@ model Contact {
   name          String?
   createdAt     DateTime       @default(now())
   conversations Conversation[]
+}
+
+// Admin-configured fields the AI must collect from a visitor before escalating to a human.
+// Enforced server-side against Conversation.collectedFields — never trusts the AI's own say-so.
+model HandoffField {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  label     String
+  required  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
 }
 
 model Label {
@@ -209,6 +223,14 @@ model Conversation {
   visitorTimezone  String?
   visitorReferrer  String?
   visitorPageUrl   String?
+
+  // Answers gathered so far while status is PENDING_HANDOFF, keyed by HandoffField.key.
+  collectedFields Json?
+  // The HandoffField.key we're currently waiting on the visitor to answer.
+  pendingFieldKey String?
+  // Agent-only context prepared at handoff time (the question that triggered it + collected
+  // fields) — shown in the sidebar, never sent to the visitor.
+  handoffSummary  String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

@@ -1,16 +1,18 @@
 "use client";
 
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { Database, Radio, Users, XIcon } from "lucide-react";
+import { Database, Radio, UserRoundCheck, Users, XIcon } from "lucide-react";
 import { useSettingsModal, type SettingsTab } from "./settings-modal-provider";
 import { SourcesPanel } from "@/app/(app)/sources/SourcesPanel";
 import { ChannelsPanel } from "@/app/(app)/channels/ChannelsPanel";
 import { TeamPanel } from "@/app/(app)/team/TeamPanel";
+import { HandoffPanel } from "@/app/(app)/handoff/HandoffPanel";
 
 const SECTIONS: { id: SettingsTab; label: string; icon: typeof Database }[] = [
   { id: "sources", label: "Data sources", icon: Database },
   { id: "channels", label: "Channels", icon: Radio },
   { id: "team", label: "Team", icon: Users },
+  { id: "handoff", label: "Handoff", icon: UserRoundCheck },
 ];
 
 export function SettingsModal() {
@@ -45,6 +47,7 @@ export function SettingsModal() {
             {tab === "sources" && <SourcesPanel />}
             {tab === "channels" && <ChannelsPanel />}
             {tab === "team" && <TeamPanel />}
+            {tab === "handoff" && <HandoffPanel />}
           </div>
 
           <DialogPrimitive.Close className="absolute top-5 right-5 text-faint transition-colors hover:text-ink">

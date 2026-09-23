@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@momo/db";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { getPresence } from "@/lib/presence";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -35,7 +36,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     select: { id: true, createdAt: true, status: true },
   });
 
-  return NextResponse.json({ conversation, previous });
+  return NextResponse.json({ conversation, previous, presence: getPresence(id) });
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -44,7 +45,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = (await req.json()) as {
-    status?: "AI" | "NEEDS_HUMAN" | "HUMAN" | "RESOLVED";
+    status?: "AI" | "PENDING_HANDOFF" | "NEEDS_HUMAN" | "HUMAN" | "RESOLVED";
     priority?: "LOW" | "NORMAL" | "HIGH" | null;
     assigneeId?: string | null;
     labelIds?: string[];
@@ -65,4 +66,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
 
   return NextResponse.json({ conversation });
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  await prisma.conversation.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
 }

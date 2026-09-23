@@ -46,6 +46,34 @@ button { font: inherit; cursor: pointer; }
     bottom .8s var(--ease-expand), width .8s var(--ease-expand),
     height .8s var(--ease-expand), border-radius .8s var(--ease-expand);
 }
+
+/* Ambient "life" glow — a slow, quiet blur of color behind the panel while the AI is
+   thinking or a human agent is typing. Clipped by the dock's own overflow:hidden, and
+   painted before the real content in source order so it always sits behind it. Off by
+   default; only the .momo-ambient modifier (toggled from sending/agentTyping state)
+   fades it in, so it never runs while idle. */
+.momo-dock::before {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(closest-side, color-mix(in srgb, var(--sky) 60%, transparent), transparent 70%) 22% 28% / 60% 60% no-repeat,
+    radial-gradient(closest-side, color-mix(in srgb, var(--ember) 50%, transparent), transparent 70%) 80% 72% / 58% 58% no-repeat,
+    radial-gradient(closest-side, color-mix(in srgb, var(--wheat) 50%, transparent), transparent 70%) 62% 18% / 46% 46% no-repeat;
+  filter: blur(60px);
+  transition: opacity 1.2s var(--ease-enter);
+}
+.momo-dock.momo-ambient::before {
+  opacity: .4;
+  animation: momo-ambient-drift 18s ease-in-out infinite;
+}
+@keyframes momo-ambient-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(3%, -3%) scale(1.06); }
+  66% { transform: translate(-3%, 2%) scale(0.96); }
+}
 .momo-dock.momo-open {
   bottom: 0;
   width: 100vw;
@@ -135,8 +163,10 @@ button { font: inherit; cursor: pointer; }
 @keyframes momo-bounce { 50% { opacity: .2; transform: translateY(-3px); } }
 
 .momo-bar {
+  position: relative;
   display: flex; align-items: center; gap: 8px;
   padding: 0 10px 0 20px; height: 60px; margin: 0;
+  border-radius: 30px;
 }
 .momo-open .momo-bar {
   width: min(640px, calc(100% - 40px));
@@ -144,6 +174,34 @@ button { font: inherit; cursor: pointer; }
   background: var(--well);
   border: 1px solid var(--edge);
   border-radius: 30px;
+}
+
+/* Center dock only, always on (not just while typing) — a soft, slowly turning ring of
+   color around the input, "magic and life" at a glance. Two stacked masked gradients
+   ("gradient border" technique): the ring itself never intercepts clicks. */
+@property --momo-glow-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.momo-dock:not(.momo-corner) .momo-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  pointer-events: none;
+  background: conic-gradient(from var(--momo-glow-angle, 0deg), var(--sky), var(--wheat), var(--ember), var(--clay), var(--sky));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: .55;
+  filter: blur(1.5px) saturate(1.2);
+  animation: momo-glow-spin 9s linear infinite;
+}
+@keyframes momo-glow-spin {
+  to { --momo-glow-angle: 360deg; }
 }
 .momo-bar input {
   flex: 1; min-width: 0; border: 0; outline: 0; background: none;
