@@ -8,7 +8,7 @@ import { headers } from "next/headers";
 // public endpoint in the widget phase, with its own guardrail identity (IP/cookie).
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session || session.user.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { conversationId, message } = (await req.json()) as { conversationId?: string; message: string };
   if (!message?.trim()) return NextResponse.json({ error: "message is required" }, { status: 400 });

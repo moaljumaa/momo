@@ -7,7 +7,7 @@ import { headers } from "next/headers";
 // anything is crawled or stored.
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session || session.user.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { url } = (await req.json()) as { url?: string };
   if (!url) return NextResponse.json({ error: "url is required" }, { status: 400 });

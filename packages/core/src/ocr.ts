@@ -4,14 +4,17 @@ import { z } from "zod";
 import { createCanvas } from "@napi-rs/canvas";
 import { createRequire } from "module";
 import path from "path";
+import { getOpenRouterApiKey } from "./settings";
 
 const require = createRequire(import.meta.url);
 
-const openrouter = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
 // A plain vision-capable chat model is enough for OCR (no reasoning needed) and keeps this
 // path cheap — gpt-4o-mini reads clean, on the order of $0.001/page. Separate from
 // CHAT_MODEL/EMBEDDING_MODEL since the bot's configured chat model may not support images.
-const visionModel = () => openrouter.chat(process.env.OCR_MODEL || "openai/gpt-4o-mini");
+const visionModel = async () => {
+  const openrouter = createOpenRouter({ apiKey: await getOpenRouterApiKey() });
+  return openrouter.chat(process.env.OCR_MODEL || "openai/gpt-4o-mini");
+};
 
 const MAX_OCR_PAGES = 20;
 const RENDER_SCALE = 2; // ~144 DPI at standard page size — enough for the model to read text reliably
@@ -36,7 +39,7 @@ export async function ocrPdf(buffer: Buffer): Promise<OcrResult> {
   if (images.length === 0) return { pages: [], summary: "" };
 
   const { object } = await generateObject({
-    model: visionModel(),
+    model: await visionModel(),
     schema: ocrSchema,
     messages: [
       {

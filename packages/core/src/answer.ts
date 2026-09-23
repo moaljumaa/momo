@@ -2,11 +2,14 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText, generateObject } from "ai";
 import { z } from "zod";
 import type { RetrievedChunk } from "./retrieve";
+import { getOpenRouterApiKey } from "./settings";
 
 // Chat model: per-bot choice from Settings.model (the instructions page's model selector),
 // falling back to the CHAT_MODEL env var, then a hardcoded default. Any OpenRouter model id.
-const openrouter = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
-const chatModel = (model?: string) => openrouter.chat(model || process.env.CHAT_MODEL || "openai/gpt-4o-mini");
+const chatModel = async (model?: string) => {
+  const openrouter = createOpenRouter({ apiKey: await getOpenRouterApiKey() });
+  return openrouter.chat(model || process.env.CHAT_MODEL || "openai/gpt-4o-mini");
+};
 
 function sourceBlock(sources: RetrievedChunk[]) {
   return sources.map((s, i) => `[${i + 1}] ${s.content}`).join("\n\n");
@@ -19,7 +22,7 @@ export async function draftAnswer(opts: {
   model?: string;
 }) {
   const { text } = await generateText({
-    model: chatModel(opts.model),
+    model: await chatModel(opts.model),
     system: [
       opts.systemPrompt || "You are a helpful support agent. Be concise and plain.",
       "Answer only using the sources below. Never invent facts, links or policies not present in them.",
@@ -42,7 +45,7 @@ const gateSchema = z.object({
 
 export async function gateAnswer(opts: { question: string; answer: string; sources: RetrievedChunk[]; model?: string }) {
   const { object } = await generateObject({
-    model: chatModel(opts.model),
+    model: await chatModel(opts.model),
     schema: gateSchema,
     prompt: [
       "You are an accuracy judge for a support bot. Judge two separate things:",

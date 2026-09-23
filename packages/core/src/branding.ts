@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { safeFetch } from "./safe-fetch";
 
 export type Branding = {
   logoUrl: string | null;
@@ -14,7 +15,7 @@ export type Branding = {
 export async function fetchBranding(siteUrl: string): Promise<Branding> {
   try {
     const origin = new URL(siteUrl).origin;
-    const res = await fetch(origin, { headers: { "user-agent": "momo-bot/0.1" } });
+    const res = await safeFetch(origin, { headers: { "user-agent": "momo-bot/0.1" } });
     if (!res.ok) throw new Error("fetch failed");
     const $ = cheerio.load(await res.text());
 

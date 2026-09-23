@@ -1,12 +1,13 @@
 "use client";
 
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { Database, Radio, UserRoundCheck, Users, XIcon } from "lucide-react";
+import { Database, Radio, UserRound, UserRoundCheck, Users, XIcon } from "lucide-react";
 import { useSettingsModal, type SettingsTab } from "./settings-modal-provider";
 import { SourcesPanel } from "@/app/(app)/sources/SourcesPanel";
 import { ChannelsPanel } from "@/app/(app)/channels/ChannelsPanel";
 import { TeamPanel } from "@/app/(app)/team/TeamPanel";
 import { HandoffPanel } from "@/app/(app)/handoff/HandoffPanel";
+import { AccountPanel } from "./account-panel";
 
 const SECTIONS: { id: SettingsTab; label: string; icon: typeof Database }[] = [
   { id: "sources", label: "Data sources", icon: Database },
@@ -15,7 +16,10 @@ const SECTIONS: { id: SettingsTab; label: string; icon: typeof Database }[] = [
   { id: "handoff", label: "Handoff", icon: UserRoundCheck },
 ];
 
-export function SettingsModal() {
+const ACCOUNT_SECTION = { id: "account" as SettingsTab, label: "Account", icon: UserRound };
+
+// Configuration tabs are admin-only; every role gets Account.
+export function SettingsModal({ isAdmin }: { isAdmin: boolean }) {
   const { tab, open, close } = useSettingsModal();
 
   return (
@@ -27,14 +31,12 @@ export function SettingsModal() {
 
           <nav className="flex w-56 shrink-0 flex-col gap-0.5 border-r border-line bg-well p-4">
             <div className="mb-4 px-2 text-xs font-normal text-faint">Settings</div>
-            {SECTIONS.map((s) => (
+            {(isAdmin ? [...SECTIONS, ACCOUNT_SECTION] : [ACCOUNT_SECTION]).map((s) => (
               <button
                 key={s.id}
                 onClick={() => open(s.id)}
                 className={`flex items-center gap-2.5 rounded-full px-3 py-2 text-left text-sm font-light transition-colors ${
-                  tab === s.id
-                    ? "border border-accent-orange-line bg-accent-orange text-ink"
-                    : "text-soft hover:bg-hover"
+                  tab === s.id ? "bg-hover text-ink" : "text-soft hover:bg-hover"
                 }`}
               >
                 <s.icon className="size-4 shrink-0" />
@@ -44,10 +46,11 @@ export function SettingsModal() {
           </nav>
 
           <div className="flex-1 overflow-y-auto p-8">
-            {tab === "sources" && <SourcesPanel />}
-            {tab === "channels" && <ChannelsPanel />}
-            {tab === "team" && <TeamPanel />}
-            {tab === "handoff" && <HandoffPanel />}
+            {isAdmin && tab === "sources" && <SourcesPanel />}
+            {isAdmin && tab === "channels" && <ChannelsPanel />}
+            {isAdmin && tab === "team" && <TeamPanel />}
+            {isAdmin && tab === "handoff" && <HandoffPanel />}
+            {tab === "account" && <AccountPanel />}
           </div>
 
           <DialogPrimitive.Close className="absolute top-5 right-5 text-faint transition-colors hover:text-ink">

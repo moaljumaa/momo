@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { publish } from "@/lib/conversation-events";
 import { touchLastSeen } from "@/lib/presence";
+import { extractClientIp } from "@/lib/geo-ip";
+import { rateLimited } from "@/lib/rate-limit";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +15,10 @@ const cors = {
 export async function POST(req: NextRequest) {
   const { conversationId } = (await req.json()) as { conversationId?: string };
   if (!conversationId) return NextResponse.json({ error: "conversationId is required" }, { status: 400, headers: cors });
+
+  if (typeof conversationId !== "string" || rateLimited(`typing:${extractClientIp(req) ?? "unknown"}`, 120, 60_000)) {
+    return NextResponse.json({ error: "too many requests" }, { status: 429, headers: cors });
+  }
 
   touchLastSeen(conversationId);
   publish({ type: "typing", conversationId, source: "visitor" });

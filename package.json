@@ -1,6 +1,7 @@
 {
   "name": "momo",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "packageManager": "pnpm@10.34.4",
   "scripts": {
     "dev": "docker compose up -d && turbo run dev",

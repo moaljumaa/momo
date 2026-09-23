@@ -15,3 +15,6 @@ docs
 CLAUDE.md
 PROJECT.md
 design
+*.tsbuildinfo
+ee
+C:

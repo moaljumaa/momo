@@ -8,10 +8,10 @@ const TooltipProvider = TooltipPrimitive.Provider
 const Tooltip = TooltipPrimitive.Root
 const TooltipTrigger = TooltipPrimitive.Trigger
 
-function TooltipContent({ className, sideOffset = 8, children, ...props }: TooltipPrimitive.Popup.Props & { sideOffset?: number }) {
+function TooltipContent({ className, sideOffset = 8, side, children, ...props }: TooltipPrimitive.Popup.Props & { sideOffset?: number; side?: "top" | "right" | "bottom" | "left" }) {
   return (
     <TooltipPrimitive.Portal>
-      <TooltipPrimitive.Positioner sideOffset={sideOffset}>
+      <TooltipPrimitive.Positioner sideOffset={sideOffset} side={side}>
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"
           className={cn(

@@ -3,13 +3,41 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, X } from "lucide-react";
 
-type HandoffField = { id: string; key: string; label: string; required: boolean; order: number };
+type FieldType = "TEXT" | "EMAIL" | "PHONE" | "DATE" | "NUMBER";
+type HandoffField = { id: string; key: string; label: string; type: FieldType; required: boolean; order: number };
+
+const TYPE_LABEL: Record<FieldType, string> = {
+  TEXT: "Text",
+  EMAIL: "Email",
+  PHONE: "Phone",
+  DATE: "Date",
+  NUMBER: "Number",
+};
+
+function TypeSelect({ value, onChange }: { value: FieldType; onChange: (v: FieldType) => void }) {
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as FieldType)}>
+      <SelectTrigger className="h-8 w-28 shrink-0 text-xs">
+        <SelectValue>{TYPE_LABEL[value]}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {(Object.keys(TYPE_LABEL) as FieldType[]).map((t) => (
+          <SelectItem key={t} value={t}>
+            {TYPE_LABEL[t]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 export function HandoffPanel() {
   const [fields, setFields] = useState<HandoffField[] | null>(null);
   const [label, setLabel] = useState("");
+  const [type, setType] = useState<FieldType>("TEXT");
   const [saving, setSaving] = useState(false);
 
   function load() {
@@ -26,11 +54,21 @@ export function HandoffPanel() {
     await fetch("/api/handoff-fields", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ key: label.trim(), label: label.trim() }),
+      body: JSON.stringify({ key: label.trim(), label: label.trim(), type }),
     });
     setSaving(false);
     setLabel("");
+    setType("TEXT");
     load();
+  }
+
+  async function changeType(field: HandoffField, next: FieldType) {
+    setFields((fs) => fs?.map((f) => (f.id === field.id ? { ...f, type: next } : f)) ?? null);
+    await fetch(`/api/handoff-fields/${field.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ type: next }),
+    });
   }
 
   async function toggleRequired(field: HandoffField) {
@@ -66,6 +104,7 @@ export function HandoffPanel() {
         {fields?.map((f) => (
           <div key={f.id} className="flex items-center gap-3 rounded-[1rem] border border-line px-4 py-3">
             <div className="min-w-0 flex-1 truncate text-sm font-normal">{f.label}</div>
+            <TypeSelect value={f.type} onChange={(v) => changeType(f, v)} />
             <button
               onClick={() => toggleRequired(f)}
               className={`rounded-full border px-2.5 py-1 text-xs font-light transition-colors ${
@@ -88,6 +127,7 @@ export function HandoffPanel() {
           onChange={(e) => setLabel(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
         />
+        <TypeSelect value={type} onChange={setType} />
         <Button onClick={add} disabled={saving} className="shrink-0 gap-1.5 rounded-full px-4">
           <Plus className="size-4" />
           Add

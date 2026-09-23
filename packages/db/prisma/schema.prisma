@@ -106,6 +106,12 @@ model Settings {
   suggestedQuestions  Json    @default("[]")
   logoUrl             String?
   faviconUrl          String?
+
+  // User-entered OpenRouter key, set during onboarding — falls back to the OPENROUTER_API_KEY
+  // env var when unset, same pattern as `model`/CHAT_MODEL.
+  openrouterApiKey     String?
+  // Null until the onboarding wizard is completed; gates the (app) redirect.
+  onboardingCompletedAt DateTime?
 }
 
 // ---- Knowledge ----
@@ -179,15 +185,26 @@ model Contact {
   conversations Conversation[]
 }
 
+enum HandoffFieldType {
+  TEXT
+  EMAIL
+  PHONE
+  DATE
+  NUMBER
+}
+
 // Admin-configured fields the AI must collect from a visitor before escalating to a human.
 // Enforced server-side against Conversation.collectedFields — never trusts the AI's own say-so.
+// `type` drives both the widget's format validation (see widget-field-validation.ts) and
+// the admin field editor.
 model HandoffField {
-  id        String   @id @default(cuid())
-  key       String   @unique
+  id        String           @id @default(cuid())
+  key       String           @unique
   label     String
-  required  Boolean  @default(true)
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
+  type      HandoffFieldType @default(TEXT)
+  required  Boolean          @default(true)
+  order     Int              @default(0)
+  createdAt DateTime         @default(now())
 }
 
 model Label {
@@ -199,7 +216,7 @@ model Label {
 }
 
 model Conversation {
-  id           String             @id @default(cuid())
+  id           String             @id @default(uuid())
   contactId    String?
   contact      Contact?           @relation(fields: [contactId], references: [id])
   status       ConversationStatus @default(AI)

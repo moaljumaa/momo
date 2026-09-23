@@ -59,7 +59,7 @@ async function extractErrorMessage(err: unknown, ext: string): Promise<string> {
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session || session.user.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const form = await req.formData();
   const file = form.get("file");
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
 
   try {
     await mkdir(UPLOAD_DIR, { recursive: true });
-    await writeFile(path.join(UPLOAD_DIR, `${source.id}-${file.name}`), buffer);
+    await writeFile(path.join(UPLOAD_DIR, `${source.id}${ext}`), buffer);
   } catch {
     // the extracted text is already saved — keeping the original is best-effort
   }

@@ -1,9 +1,12 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateObject } from "ai";
 import { z } from "zod";
+import { getOpenRouterApiKey } from "./settings";
 
-const openrouter = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
-const chatModel = () => openrouter.chat(process.env.CHAT_MODEL || "openai/gpt-4o-mini");
+const chatModel = async () => {
+  const openrouter = createOpenRouter({ apiKey: await getOpenRouterApiKey() });
+  return openrouter.chat(process.env.CHAT_MODEL || "openai/gpt-4o-mini");
+};
 
 const draftSchema = z.object({
   systemPrompt: z.string().describe("2-4 sentences: who the business is, what the bot should help with, any tone/scope notes"),
@@ -21,7 +24,7 @@ export type OnboardingDraft = z.infer<typeof draftSchema>;
 // is saved directly.
 export async function draftOnboarding(opts: { siteUrl: string; sampleText: string }): Promise<OnboardingDraft> {
   const { object } = await generateObject({
-    model: chatModel(),
+    model: await chatModel(),
     schema: draftSchema,
     prompt: [
       `You are setting up an AI support bot for ${opts.siteUrl} based on content crawled from its site.`,

@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import { SlidersHorizontal, Check, ArrowUp } from "lucide-react";
 import { ConversationSidebar, type ConversationDetail } from "./ConversationSidebar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { ConversationEvent } from "@/lib/conversation-events";
 import { authClient } from "@/lib/auth-client";
 
@@ -77,6 +81,7 @@ function timeAgo(iso: string) {
 }
 
 export default function ConversationsPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]["id"]>("all");
   const [sort, setSort] = useState<(typeof SORTS)[number]["id"]>("recent");
@@ -85,7 +90,6 @@ export default function ConversationsPage() {
   const [dateRange, setDateRange] = useState<(typeof DATE_RANGES)[number]["id"]>("all");
   const [dateField, setDateField] = useState<"updatedAt" | "createdAt">("updatedAt");
   const [labelFilter, setLabelFilter] = useState<string[]>([]);
-  const [labelFilterOpen, setLabelFilterOpen] = useState(false);
   const [allLabels, setAllLabels] = useState<{ id: string; name: string; color: string }[]>([]);
   const [list, setList] = useState<ListItem[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -105,6 +109,7 @@ export default function ConversationsPage() {
 
   const selectedIdRef = useRef<string | null>(null);
   const lastTypingSentRef = useRef(0);
+  const typingClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const myUserIdRef = useRef<string | undefined>(myUserId);
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -147,10 +152,13 @@ export default function ConversationsPage() {
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
 
-  function loadDetail(id: string) {
+  function loadDetail(id: string, opts?: { syncUrl?: boolean }) {
     setSelectedId(id);
     setTypingAgent(null);
     setPresence(null);
+    if (opts?.syncUrl !== false && searchParams.get("open") !== id) {
+      router.replace(`/conversations?open=${id}`, { scroll: false });
+    }
     fetch(`/api/conversations/${id}`)
       .then((r) => r.json())
       .then((d) => {
@@ -159,10 +167,12 @@ export default function ConversationsPage() {
       });
   }
 
-  // Deep link from the notification toast: /conversations?open=<id>
+  // Deep link / shareable URL: /conversations?open=<id> — read on mount and whenever the
+  // URL's own "open" param changes (e.g. browser back/forward), but not for changes this
+  // page itself just made via loadDetail's router.replace.
   useEffect(() => {
     const open = searchParams.get("open");
-    if (open) loadDetail(open);
+    if (open && open !== selectedIdRef.current) loadDetail(open, { syncUrl: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -179,12 +189,31 @@ export default function ConversationsPage() {
         if (event.source === "agent" && event.agentId === myUserIdRef.current) return;
         const label = event.source === "agent" ? event.agentName : "Visitor";
         setTypingAgent(label);
-        setTimeout(() => setTypingAgent((a) => (a === label ? null : a)), 3000);
+        // Each new typing event must restart the same clear timer, not stack another one —
+        // otherwise the earliest-scheduled timeout fires and hides the indicator while the
+        // visitor/agent is still actively typing.
+        if (typingClearRef.current) clearTimeout(typingClearRef.current);
+        typingClearRef.current = setTimeout(() => setTypingAgent((a) => (a === label ? null : a)), 3000);
         return;
       }
 
       if (event.type === "presence") {
         if (event.conversationId === selectedIdRef.current) setPresence({ online: event.online, lastSeenAt: event.lastSeenAt });
+        return;
+      }
+
+      if (event.type === "conversation") {
+        if (event.conversationId === selectedIdRef.current) {
+          setDetail((d) => (d ? { ...d, conversation: { ...d.conversation, ...event.conversation } } : d));
+        }
+        setList((current) => {
+          if (!current) return current;
+          return current.map((c) =>
+            c.id === event.conversationId
+              ? { ...c, status: event.conversation.status, priority: event.conversation.priority, labels: event.conversation.labels, assignee: event.conversation.assignee }
+              : c,
+          );
+        });
         return;
       }
 
@@ -237,7 +266,12 @@ export default function ConversationsPage() {
       body: JSON.stringify({ content: text }),
     });
     const { message } = await res.json();
-    setDetail((d) => (d ? { ...d, messages: [...d.messages, message] } : d));
+    // The SSE "message" event for this same reply can arrive (and get appended) before this
+    // fetch's own response does — dedup by id here too, exactly like the SSE handler already
+    // does, or a fast SSE delivery produces two copies of the agent's own message.
+    setDetail((d) =>
+      d && !d.messages.some((m) => m.id === message.id) ? { ...d, messages: [...d.messages, message] } : d,
+    );
     setSending(false);
     loadList();
   }
@@ -259,125 +293,162 @@ export default function ConversationsPage() {
     loadList();
   }
 
-  function resolveConversation() {
-    updateConversation({ status: "RESOLVED" });
+  async function resolveConversation() {
+    await updateConversation({ status: "RESOLVED" });
+    toast.success("Conversation resolved");
   }
 
   async function deleteConversation() {
     if (!selectedId) return;
-    if (!confirm("Delete this conversation permanently? This can't be undone.")) return;
     await fetch(`/api/conversations/${selectedId}`, { method: "DELETE" });
     setDetail(null);
     setSelectedId(null);
+    router.replace("/conversations", { scroll: false });
     loadList();
+    toast.success("Conversation deleted");
   }
+
+  const activeFilterCount =
+    (sort !== "recent" ? 1 : 0) +
+    (priorityFilter !== "all" ? 1 : 0) +
+    (assigneeFilter !== "all" ? 1 : 0) +
+    (dateRange !== "all" ? 1 : 0) +
+    (labelFilter.length > 0 ? 1 : 0);
 
   return (
     <div className="flex h-screen overflow-hidden">
       <div className="flex w-80 shrink-0 flex-col border-r border-line">
-        <div className="flex flex-col gap-2 border-b border-line p-4">
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as typeof filter)}
-            className="h-8 w-full rounded-full border border-edge bg-well px-3 text-xs font-light text-ink outline-none"
-          >
-            {STATUS_FILTERS.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-
-          <div className="flex flex-wrap gap-1.5">
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as typeof sort)}
-              className="h-7 rounded-full border border-line bg-transparent px-2.5 text-[11px] font-light text-soft outline-none"
-            >
-              {SORTS.map((s) => (
-                <option key={s.id} value={s.id}>
-                  Sort: {s.label}
-                </option>
+        <div className="flex items-center gap-2 border-b border-line p-4">
+          <Select value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+            <SelectTrigger className="h-8 flex-1 text-xs">
+              <SelectValue>{(v: string) => STATUS_FILTERS.find((f) => f.id === v)?.label}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_FILTERS.map((f) => (
+                <SelectItem key={f.id} value={f.id}>
+                  {f.label}
+                </SelectItem>
               ))}
-            </select>
+            </SelectContent>
+          </Select>
 
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value as typeof priorityFilter)}
-              className="h-7 rounded-full border border-line bg-transparent px-2.5 text-[11px] font-light text-soft outline-none"
+          <Popover>
+            <PopoverTrigger
+              className={`relative flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                activeFilterCount > 0 ? "border-accent-orange-line bg-accent-orange text-ink" : "border-line text-soft hover:bg-hover"
+              }`}
+              aria-label="More filters"
             >
-              <option value="all">Any priority</option>
-              <option value="HIGH">High</option>
-              <option value="NORMAL">Normal</option>
-              <option value="LOW">Low</option>
-            </select>
-
-            <select
-              value={assigneeFilter}
-              onChange={(e) => setAssigneeFilter(e.target.value)}
-              className="h-7 rounded-full border border-line bg-transparent px-2.5 text-[11px] font-light text-soft outline-none"
-            >
-              <option value="all">Anyone assigned</option>
-              <option value="ai">AI Agent</option>
-              {agents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-
-            <div className="flex items-center gap-1">
-              <select
-                value={dateField}
-                onChange={(e) => setDateField(e.target.value as typeof dateField)}
-                className="h-7 rounded-full border border-line bg-transparent px-2 text-[11px] font-light text-soft outline-none"
-              >
-                <option value="updatedAt">Modified</option>
-                <option value="createdAt">Created</option>
-              </select>
-              <select
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value as typeof dateRange)}
-                className="h-7 rounded-full border border-line bg-transparent px-2.5 text-[11px] font-light text-soft outline-none"
-              >
-                {DATE_RANGES.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="relative">
-              <button
-                onClick={() => setLabelFilterOpen((o) => !o)}
-                className={`h-7 rounded-full border px-2.5 text-[11px] font-light transition-colors ${
-                  labelFilter.length > 0 ? "border-accent-orange-line bg-accent-orange text-ink" : "border-line text-soft hover:bg-hover"
-                }`}
-              >
-                Labels{labelFilter.length > 0 ? ` (${labelFilter.length})` : ""}
-              </button>
-              {labelFilterOpen && (
-                <div className="absolute top-8 left-0 z-10 flex w-44 flex-col gap-1 rounded-[0.75rem] border border-line bg-sheet p-2 shadow-lg">
-                  {allLabels.length === 0 && <p className="px-2 py-1 text-xs font-light text-faint">No labels yet.</p>}
-                  {allLabels.map((l) => (
-                    <button
-                      key={l.id}
-                      onClick={() =>
-                        setLabelFilter((cur) => (cur.includes(l.id) ? cur.filter((id) => id !== l.id) : [...cur, l.id]))
-                      }
-                      className={`flex items-center gap-2 rounded-full px-2.5 py-1.5 text-left text-xs font-light transition-colors hover:bg-hover ${
-                        labelFilter.includes(l.id) ? "bg-hover" : ""
-                      }`}
-                    >
-                      <span className="size-1.5 shrink-0 rounded-full" style={{ background: l.color }} />
-                      {l.name}
-                    </button>
-                  ))}
-                </div>
+              <SlidersHorizontal className="size-3.5" />
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-ember text-[9px] font-normal text-ink">
+                  {activeFilterCount}
+                </span>
               )}
-            </div>
-          </div>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="flex flex-col gap-4">
+              <FilterField label="Sort">
+                <Select value={sort} onValueChange={(v) => setSort(v as typeof sort)}>
+                  <SelectTrigger className="h-8 w-full text-xs">
+                    <SelectValue>{(v: string) => SORTS.find((s) => s.id === v)?.label}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SORTS.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FilterField>
+
+              <FilterField label="Priority">
+                <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as typeof priorityFilter)}>
+                  <SelectTrigger className="h-8 w-full text-xs">
+                    <SelectValue>
+                      {(v: string) => (v === "all" ? "Any priority" : v.charAt(0) + v.slice(1).toLowerCase())}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any priority</SelectItem>
+                    <SelectItem value="HIGH">High</SelectItem>
+                    <SelectItem value="NORMAL">Normal</SelectItem>
+                    <SelectItem value="LOW">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FilterField>
+
+              <FilterField label="Assignee">
+                <Select value={assigneeFilter} onValueChange={(v) => setAssigneeFilter(v ?? "all")}>
+                  <SelectTrigger className="h-8 w-full text-xs">
+                    <SelectValue>
+                      {(v: string) => (v === "all" ? "Anyone assigned" : v === "ai" ? "AI Agent" : agents.find((a) => a.id === v)?.name)}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Anyone assigned</SelectItem>
+                    <SelectItem value="ai">AI Agent</SelectItem>
+                    {agents.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FilterField>
+
+              <FilterField label="Date range">
+                <div className="flex items-center gap-1.5">
+                  <Select value={dateField} onValueChange={(v) => setDateField(v as typeof dateField)}>
+                    <SelectTrigger className="h-8 w-28 text-xs">
+                      <SelectValue>{(v: string) => (v === "updatedAt" ? "Modified" : "Created")}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="updatedAt">Modified</SelectItem>
+                      <SelectItem value="createdAt">Created</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={dateRange} onValueChange={(v) => setDateRange(v as typeof dateRange)}>
+                    <SelectTrigger className="h-8 flex-1 text-xs">
+                      <SelectValue>{(v: string) => DATE_RANGES.find((r) => r.id === v)?.label}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DATE_RANGES.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </FilterField>
+
+              <FilterField label="Labels">
+                {allLabels.length === 0 ? (
+                  <p className="text-xs font-light text-faint">No labels yet.</p>
+                ) : (
+                  <div className="flex flex-col gap-0.5">
+                    {allLabels.map((l) => {
+                      const active = labelFilter.includes(l.id);
+                      return (
+                        <button
+                          key={l.id}
+                          onClick={() =>
+                            setLabelFilter((cur) => (cur.includes(l.id) ? cur.filter((id) => id !== l.id) : [...cur, l.id]))
+                          }
+                          className="flex items-center gap-2 rounded-full px-2.5 py-1.5 text-left text-xs font-light transition-colors hover:bg-hover"
+                        >
+                          <span className="size-1.5 shrink-0 rounded-full" style={{ background: l.color }} />
+                          <span className="flex-1">{l.name}</span>
+                          {active && <Check className="size-3.5 shrink-0 text-sky-deep" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </FilterField>
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -464,6 +535,14 @@ export default function ConversationsPage() {
                 placeholder="Reply as an agent…"
                 className="flex-1 bg-transparent text-sm font-light outline-none placeholder:text-faint"
               />
+              <button
+                type="submit"
+                disabled={!reply.trim() || sending}
+                aria-label="Send reply"
+                className="ml-2 flex size-7 shrink-0 items-center justify-center rounded-full bg-ink text-sheet transition-opacity disabled:opacity-30"
+              >
+                <ArrowUp className="size-3.5" />
+              </button>
             </form>
           </>
         )}
@@ -483,6 +562,15 @@ export default function ConversationsPage() {
           />
         </div>
       )}
+    </div>
+  );
+}
+
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="text-xs font-light text-soft">{label}</div>
+      {children}
     </div>
   );
 }

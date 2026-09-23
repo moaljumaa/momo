@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 import { Plus } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UserAvatar } from "@/components/user-avatar";
 
 type Member = { id: string; name: string; email: string; image: string | null; role: "ADMIN" | "HUMAN_AGENT" | "AI_AGENT" };
 
@@ -40,7 +42,7 @@ export function TeamPanel() {
     const res = await fetch("/api/team", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ name, email, password, role: "HUMAN_AGENT" }),
     });
     setSaving(false);
     if (!res.ok) {
@@ -78,9 +80,12 @@ export function TeamPanel() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+          <p className="text-xs font-light text-faint">
+            Conversations and contacts only — can't see the playground or configuration.
+          </p>
           {error && <p className="text-xs font-light text-clay">{error}</p>}
           <Button onClick={invite} disabled={saving} className="self-start rounded-full px-5">
-            {saving ? "Adding…" : "Add as human agent"}
+            {saving ? "Adding…" : "Add teammate"}
           </Button>
         </div>
       )}
@@ -88,9 +93,7 @@ export function TeamPanel() {
       <div className="flex flex-col gap-2">
         {members?.map((m) => (
           <div key={m.id} className="flex items-center gap-3 rounded-[1rem] border border-line px-4 py-3">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-hover text-xs font-normal">
-              {m.name.slice(0, 1).toUpperCase()}
-            </div>
+            <UserAvatar name={m.name} image={m.image} />
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-normal">{m.name}</div>
               <div className="truncate text-xs font-light text-faint">{m.email}</div>

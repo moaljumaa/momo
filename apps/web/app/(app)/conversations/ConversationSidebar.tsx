@@ -2,9 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Check, CircleCheck, Trash2 } from "lucide-react";
 
 type User = { id: string; name: string; image: string | null };
 type Label = { id: string; name: string; color: string };
@@ -89,8 +99,8 @@ export function ConversationSidebar({
   onDelete: () => void;
 }) {
   const [labels, setLabels] = useState<Label[]>([]);
-  const [labelPicker, setLabelPicker] = useState(false);
   const [newLabel, setNewLabel] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/labels")
@@ -154,16 +164,38 @@ export function ConversationSidebar({
       <Section title="Conversation actions">
         <div className="flex gap-2">
           {conversation.status !== "RESOLVED" && (
-            <Button onClick={onResolve} className="h-8 flex-1 rounded-full text-xs">
+            <Button onClick={onResolve} className="h-8 flex-1 gap-1.5 rounded-full text-xs">
+              <CircleCheck className="size-3.5" />
               Resolve
             </Button>
           )}
-          <Button
-            onClick={onDelete}
-            className="h-8 flex-1 rounded-full border border-clay/40 bg-transparent text-xs text-clay hover:bg-clay/10"
-          >
-            Delete
-          </Button>
+          <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <DialogTrigger className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full border border-clay/40 bg-transparent text-xs text-clay transition-colors hover:bg-clay/10">
+              <Trash2 className="size-3.5" />
+              Delete
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete this conversation?</DialogTitle>
+                <DialogDescription>This can&apos;t be undone. All messages and history will be permanently removed.</DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-end gap-2">
+                <DialogClose className="h-8 rounded-full border border-line px-4 text-xs font-light text-soft hover:bg-hover">
+                  Cancel
+                </DialogClose>
+                <Button
+                  onClick={() => {
+                    setDeleteOpen(false);
+                    onDelete();
+                  }}
+                  className="h-8 gap-1.5 rounded-full border border-clay/40 bg-transparent px-4 text-xs text-clay hover:bg-clay/10"
+                >
+                  <Trash2 className="size-3.5" />
+                  Delete
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
         <Field label="Assigned agent">
           <Select
@@ -217,44 +249,45 @@ export function ConversationSidebar({
                 </button>
               </span>
             ))}
-            <button
-              onClick={() => setLabelPicker((o) => !o)}
-              className="flex items-center gap-1 rounded-full border border-dashed border-edge px-2.5 py-1 text-xs font-light text-faint hover:bg-hover"
-            >
-              <Plus className="size-3" />
-              Add
-            </button>
-          </div>
-          {labelPicker && (
-            <div className="mt-2 flex flex-col gap-2 rounded-[0.75rem] border border-line bg-well p-3">
-              <div className="flex flex-col gap-1">
-                {labels.map((l) => (
-                  <button
-                    key={l.id}
-                    onClick={() => toggleLabel(l.id)}
-                    className={`flex items-center gap-2 rounded-full px-2.5 py-1.5 text-left text-xs font-light transition-colors hover:bg-hover ${
-                      conversation.labels.some((cl) => cl.id === l.id) ? "bg-hover" : ""
-                    }`}
-                  >
-                    <span className="size-1.5 shrink-0 rounded-full" style={{ background: l.color }} />
-                    {l.name}
+            <Popover>
+              <PopoverTrigger className="flex items-center gap-1 rounded-full border border-dashed border-edge px-2.5 py-1 text-xs font-light text-faint transition-colors hover:bg-hover">
+                <Plus className="size-3" />
+                Add
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-56 p-2">
+                <div className="flex flex-col gap-0.5">
+                  {labels.length === 0 && <p className="px-2.5 py-1.5 text-xs font-light text-faint">No labels yet.</p>}
+                  {labels.map((l) => {
+                    const active = conversation.labels.some((cl) => cl.id === l.id);
+                    return (
+                      <button
+                        key={l.id}
+                        onClick={() => toggleLabel(l.id)}
+                        className="flex items-center gap-2 rounded-full px-2.5 py-1.5 text-left text-xs font-light transition-colors hover:bg-hover"
+                      >
+                        <span className="size-1.5 shrink-0 rounded-full" style={{ background: l.color }} />
+                        <span className="flex-1">{l.name}</span>
+                        {active && <Check className="size-3.5 shrink-0 text-sky-deep" />}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 flex items-center gap-1.5 border-t border-line pt-2">
+                  <span className="size-4 shrink-0 rounded-full" style={{ background: "#7C9DB8" }} />
+                  <Input
+                    value={newLabel}
+                    onChange={(e) => setNewLabel(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && createLabel()}
+                    placeholder="Create new label…"
+                    className="h-8 flex-1 text-xs"
+                  />
+                  <button onClick={createLabel} className="shrink-0 rounded-full p-1.5 text-faint hover:bg-hover hover:text-ink">
+                    <Plus className="size-3.5" />
                   </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Input
-                  value={newLabel}
-                  onChange={(e) => setNewLabel(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && createLabel()}
-                  placeholder="New label…"
-                  className="h-8 text-xs"
-                />
-                <button onClick={createLabel} className="shrink-0 rounded-full p-1.5 hover:bg-hover">
-                  <Plus className="size-3.5" />
-                </button>
-              </div>
-            </div>
-          )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         </Field>
       </Section>
 

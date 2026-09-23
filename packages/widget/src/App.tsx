@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import { Markdown } from "./markdown";
 
 type Msg = {
   id?: string;
@@ -232,7 +233,7 @@ export function App({ apiBase }: { apiBase: string }) {
             ) : (
               <div key={i} class="momo-a">
                 {m.role === "AGENT" && <p class="momo-meta">{m.agentName ?? "Agent"}</p>}
-                <p>{m.content}</p>
+                <Markdown text={m.content} />
                 <div class="momo-meta">
                   {typeof m.confidence === "number" && (
                     <span>

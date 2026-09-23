@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 export { ConversationStatus } from "@prisma/client";
-export type { Role, MessageRole, TicketStatus, Priority } from "@prisma/client";
+export type { Role, MessageRole, TicketStatus, Priority, HandoffField, HandoffFieldType } from "@prisma/client";
 
 const g = globalThis as unknown as { prisma?: PrismaClient };
 export const prisma =

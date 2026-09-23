@@ -111,11 +111,7 @@ export function Wizard({
   }
 
   if (!draft) {
-    return (
-      <div className="flex flex-1 flex-col justify-center">
-        <p className="text-sm font-light text-faint">Reading {siteUrl} and drafting instructions…</p>
-      </div>
-    );
+    return <DraftingLoader siteUrl={siteUrl} />;
   }
 
   return (
@@ -159,9 +155,53 @@ export function Wizard({
         </div>
       </div>
 
-      <div className="hidden min-h-0 lg:block">
-        <p className="mb-3 text-xs font-normal text-soft">Live preview</p>
+      <div className="hidden min-h-0 flex-col lg:flex">
+        <p className="mb-3 shrink-0 text-xs font-normal text-soft">Live preview</p>
         <WidgetPreview draft={draft} />
+      </div>
+    </div>
+  );
+}
+
+const DRAFTING_MESSAGES = [
+  "Reading your pages",
+  "Working out what your business does",
+  "Writing the bot's instructions",
+  "Drafting a welcome message and suggested questions",
+  "Picking the right tone",
+];
+
+// Generation takes 10–30s, so the loader cycles through what's actually happening instead of
+// sitting on one static line — a pulsing orb plus a rotating status keeps it clearly alive.
+function DraftingLoader({ siteUrl }: { siteUrl: string }) {
+  const [i, setI] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setI((n) => (n + 1) % DRAFTING_MESSAGES.length), 2600);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
+      <div className="relative flex size-16 items-center justify-center">
+        <span className="absolute inline-flex size-full animate-ping rounded-full bg-ember/30" />
+        <span className="absolute inline-flex size-10 animate-pulse rounded-full bg-ember/40" />
+        <span className="relative size-4 rounded-full bg-ember" />
+      </div>
+      <div className="flex flex-col gap-2">
+        <p key={i} className="animate-pulse text-base font-light text-ink">
+          {DRAFTING_MESSAGES[i]}…
+        </p>
+        <p className="max-w-sm truncate text-xs font-light text-faint">{siteUrl}</p>
+      </div>
+      <div className="flex gap-1.5">
+        {[0, 1, 2].map((d) => (
+          <span
+            key={d}
+            className="size-1.5 animate-bounce rounded-full bg-faint"
+            style={{ animationDelay: `${d * 150}ms` }}
+          />
+        ))}
       </div>
     </div>
   );
@@ -416,7 +456,7 @@ function ReviewCard({
 function WidgetPreview({ draft }: { draft: Draft }) {
   const listRef = useRef<HTMLDivElement>(null);
   return (
-    <div className="flex h-[560px] flex-col overflow-hidden rounded-[1.5rem] border border-line bg-sheet shadow-sm">
+    <div className="flex min-h-0 max-h-[560px] flex-1 flex-col overflow-hidden rounded-[1.5rem] border border-line bg-sheet shadow-sm">
       <div className="flex items-center gap-2 border-b border-line px-5 py-4 text-sm font-normal">
         {draft.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

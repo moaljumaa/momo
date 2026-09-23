@@ -9,7 +9,7 @@ import { headers } from "next/headers";
 // is saved here, the wizard's approve step writes to /api/settings.
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session || session.user.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { sourceId } = (await req.json()) as { sourceId?: string };
   if (!sourceId) return NextResponse.json({ error: "sourceId is required" }, { status: 400 });

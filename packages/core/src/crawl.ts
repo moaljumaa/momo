@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { safeFetch, sameOrigin } from "./safe-fetch";
 
 // Static-HTML crawl only (no headless rendering — that's the cloud JS-rendering crawler).
 // Same-origin only.
@@ -39,7 +40,7 @@ async function discoverFromSitemap(origin: string): Promise<string[]> {
     // Many sites (WordPress/Yoast especially) serve a sitemap *index* at /sitemap.xml,
     // whose <loc> entries are themselves .xml sitemaps, not pages. Expand one level.
     const pageUrls = rootLocs.filter((u) => !u.endsWith(".xml"));
-    const childSitemaps = rootLocs.filter((u) => u.endsWith(".xml") && !/error/i.test(u));
+    const childSitemaps = rootLocs.filter((u) => u.endsWith(".xml") && !/error/i.test(u) && sameOrigin(u, origin));
     // Prefer sitemaps without a locale suffix (pages-sitemap.xml over pages-sitemap-de.xml).
     childSitemaps.sort((a, b) => Number(/-[a-z]{2}\.xml$/i.test(a)) - Number(/-[a-z]{2}\.xml$/i.test(b)));
 
@@ -49,14 +50,14 @@ async function discoverFromSitemap(origin: string): Promise<string[]> {
       if (pageUrls.length >= MAX_DISCOVERED) break;
     }
 
-    return pageUrls.filter((u) => u.startsWith(origin));
+    return pageUrls.filter((u) => sameOrigin(u, origin));
   } catch {
     return [];
   }
 }
 
 async function fetchSitemapLocs(url: string): Promise<string[]> {
-  const res = await fetch(url);
+  const res = await safeFetch(url);
   if (!res.ok) throw new Error("no sitemap");
   const xml = await res.text();
   return [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((m) => m[1]!);
@@ -64,7 +65,7 @@ async function fetchSitemapLocs(url: string): Promise<string[]> {
 
 async function discoverFromHomepage(startUrl: string, origin: string): Promise<string[]> {
   try {
-    const res = await fetch(startUrl, { headers: { "user-agent": "momo-bot/0.1" } });
+    const res = await safeFetch(startUrl, { headers: { "user-agent": "momo-bot/0.1" } });
     if (!res.ok) throw new Error("fetch failed");
     const $ = cheerio.load(await res.text());
     const links = $("a[href]")
@@ -77,7 +78,7 @@ async function discoverFromHomepage(startUrl: string, origin: string): Promise<s
           return null;
         }
       })
-      .filter((u): u is string => !!u && u.startsWith(origin));
+      .filter((u): u is string => !!u && sameOrigin(u, origin));
     return [startUrl, ...links];
   } catch {
     return [startUrl];
@@ -107,7 +108,7 @@ export async function crawlUrl(startUrl: string): Promise<CrawledPage[]> {
 }
 
 async function fetchPage(url: string): Promise<CrawledPage> {
-  const res = await fetch(url, { headers: { "user-agent": "momo-bot/0.1" } });
+  const res = await safeFetch(url, { headers: { "user-agent": "momo-bot/0.1" } });
   if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
   const html = await res.text();
   const $ = cheerio.load(html);

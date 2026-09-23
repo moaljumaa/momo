@@ -145,6 +145,14 @@ button { font: inherit; cursor: pointer; }
 
 .momo-u { align-self: flex-end; justify-self: end; color: var(--soft); font-size: 15px; font-weight: 300; text-align: right; }
 .momo-a p { font-size: clamp(19px, 2.4vw, 23px); line-height: 1.4; letter-spacing: -.01em; font-weight: 300; }
+.momo-a p + p, .momo-a p + ul, .momo-a ul + p { margin-top: 10px; }
+.momo-a strong { font-weight: 500; }
+.momo-a code {
+  font-family: ui-monospace, monospace; font-size: 0.85em; background: var(--well);
+  border-radius: 4px; padding: 0.1em 0.35em;
+}
+.momo-a ul { font-size: clamp(19px, 2.4vw, 23px); line-height: 1.4; font-weight: 300; padding-left: 1.2em; }
+.momo-a li { list-style: disc; }
 .momo-meta {
   display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin-top: 12px;
   font-size: 13px; color: var(--soft);

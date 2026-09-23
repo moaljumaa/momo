@@ -13,21 +13,20 @@ const MAX_BYTES = 5 * 1024 * 1024;
 const ACCEPTED: Record<string, string> = {
   "image/png": ".png",
   "image/jpeg": ".jpg",
-  "image/svg+xml": ".svg",
   "image/webp": ".webp",
 };
 const LOGO_DIR = path.join(process.cwd(), "public", "uploads", "logos");
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session || session.user.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const form = await req.formData();
   const file = form.get("file");
   if (!(file instanceof File)) return NextResponse.json({ error: "file is required" }, { status: 400 });
 
   const ext = ACCEPTED[file.type];
-  if (!ext) return NextResponse.json({ error: "use a PNG, JPG, WebP or SVG image" }, { status: 400 });
+  if (!ext) return NextResponse.json({ error: "use a PNG, JPG or WebP image" }, { status: 400 });
   if (file.size > MAX_BYTES) return NextResponse.json({ error: "image is over 5 MB" }, { status: 400 });
 
   await mkdir(LOGO_DIR, { recursive: true });

@@ -65,8 +65,8 @@
 
 /* Mist theme. Source of truth: docs/design.md. Widget mirror: packages/widget/src/theme.css
    Single fixed dark palette (no light/dark toggle) — two near-black shades (bg/well
-   darker than sheet) plus an orange accent for active/selected states and a blue
-   accent for links/focus, matching the app's settings-modal chrome. */
+   darker than sheet), a neutral grey (hover) fill for active/selected nav items, and a
+   blue accent for primary buttons, links and focus. */
 :root {
     --bg: #1A1A19;
     --sheet: #202020;
@@ -93,7 +93,7 @@
     --card-foreground: var(--ink);
     --popover: var(--sheet);
     --popover-foreground: var(--ink);
-    --primary: var(--ember);
+    --primary: var(--sky);
     --primary-foreground: #FBF8F5;
     --secondary: var(--hover);
     --secondary-foreground: var(--ink);

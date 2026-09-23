@@ -2,27 +2,37 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { ChevronsLeft, ChevronsRight, Database, Inbox, MessageSquare, Radio, Users } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ChevronsLeft, ChevronsRight, Inbox, Play, Settings, Users } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { UserAvatar } from "@/components/user-avatar";
 import { useSettingsModal } from "@/components/settings-modal-provider";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 const nav = [
+  { href: "/playground", label: "Playground", icon: Play, adminOnly: true },
   { href: "/conversations", label: "Conversations", icon: Inbox },
-  { href: "/playground", label: "Playground", icon: MessageSquare },
+  { href: "/contacts", label: "Contacts", icon: Users },
 ];
 
-const settingsNav = [
-  { tab: "sources" as const, label: "Data sources", icon: Database },
-  { tab: "channels" as const, label: "Channels", icon: Radio },
-  { tab: "team" as const, label: "Team", icon: Users },
-];
-
-export function Sidebar({ email }: { email: string }) {
+export function Sidebar({
+  name: initialName,
+  email: initialEmail,
+  image: initialImage,
+  isAdmin,
+}: {
+  name: string;
+  email: string;
+  image: string | null;
+  isAdmin: boolean;
+}) {
   const path = usePathname();
-  const router = useRouter();
   const { tab, open } = useSettingsModal();
+  // Server-rendered values first, then the live session so profile edits show up immediately.
+  const live = authClient.useSession().data?.user;
+  const name = live?.name ?? initialName;
+  const email = live?.email ?? initialEmail;
+  const image = live ? (live.image ?? null) : initialImage;
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -39,7 +49,7 @@ export function Sidebar({ email }: { email: string }) {
   const itemClass = (active: boolean) =>
     `flex items-center gap-2.5 rounded-full px-3 py-1.5 text-sm font-light transition-colors hover:bg-hover ${
       collapsed ? "justify-center px-0 py-2" : ""
-    } ${active ? "border border-accent-orange-line bg-accent-orange text-ink" : "text-soft"}`;
+    } ${active ? "bg-hover text-ink" : "text-soft"}`;
 
   return (
     <TooltipProvider>
@@ -60,7 +70,7 @@ export function Sidebar({ email }: { email: string }) {
           </div>
 
           <nav className="flex flex-col gap-0.5">
-            {nav.map((n) => {
+            {nav.filter((n) => isAdmin || !n.adminOnly).map((n) => {
               const active = path === n.href;
               const item = (
                 <Link key={n.href} href={n.href} className={itemClass(active)}>
@@ -79,41 +89,56 @@ export function Sidebar({ email }: { email: string }) {
             })}
           </nav>
 
+          {isAdmin && (
           <div className={`mt-6 border-t border-line pt-6 ${collapsed ? "w-full" : ""}`}>
             <nav className="flex flex-col gap-0.5">
-              {settingsNav.map((n) => {
-                const active = tab === n.tab;
+              {(() => {
                 const item = (
-                  <button key={n.tab} onClick={() => open(n.tab)} className={itemClass(active) + " text-left"}>
-                    <n.icon className="size-4 shrink-0" />
-                    {!collapsed && n.label}
+                  <button onClick={() => open("sources")} className={itemClass(!!tab) + " text-left"}>
+                    <Settings className="size-4 shrink-0" />
+                    {!collapsed && "Configuration"}
                   </button>
                 );
                 return collapsed ? (
-                  <Tooltip key={n.tab}>
+                  <Tooltip>
                     <TooltipTrigger render={item} />
-                    <TooltipContent side="right">{n.label}</TooltipContent>
+                    <TooltipContent side="right">Configuration</TooltipContent>
                   </Tooltip>
                 ) : (
                   item
                 );
-              })}
+              })()}
             </nav>
           </div>
+          )}
         </div>
 
-        <div className={`text-xs font-light text-faint ${collapsed ? "flex flex-col items-center gap-2" : "px-3"}`}>
-          {!collapsed && <div className="truncate">{email}</div>}
-          <button
-            className={collapsed ? "flex size-7 items-center justify-center rounded-full hover:bg-hover hover:text-ink" : "mt-1 underline decoration-dotted"}
-            onClick={async () => {
-              await authClient.signOut();
-              router.push("/login");
-            }}
-          >
-            {collapsed ? email.slice(0, 1).toUpperCase() : "Sign out"}
-          </button>
-        </div>
+        {(() => {
+          const item = (
+            <button
+              onClick={() => open("account")}
+              className={`flex items-center gap-2.5 rounded-full p-1.5 text-left transition-colors hover:bg-hover ${
+                collapsed ? "justify-center" : "w-full"
+              } ${tab === "account" ? "bg-hover" : ""}`}
+            >
+              <UserAvatar name={name} image={image} />
+              {!collapsed && (
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-light text-ink">{name}</span>
+                  <span className="block truncate text-xs font-light text-faint">{email}</span>
+                </span>
+              )}
+            </button>
+          );
+          return collapsed ? (
+            <Tooltip>
+              <TooltipTrigger render={item} />
+              <TooltipContent side="right">Account</TooltipContent>
+            </Tooltip>
+          ) : (
+            item
+          );
+        })()}
       </aside>
     </TooltipProvider>
   );

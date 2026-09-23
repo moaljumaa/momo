@@ -20,7 +20,20 @@ export type ConversationEvent =
     }
   | { type: "typing"; conversationId: string; source: "agent"; agentId: string; agentName: string }
   | { type: "typing"; conversationId: string; source: "visitor" }
-  | { type: "presence"; conversationId: string; online: boolean; lastSeenAt: string | null };
+  | { type: "presence"; conversationId: string; online: boolean; lastSeenAt: string | null }
+  // Fired whenever a conversation's status/assignee/priority/labels change server-side —
+  // an AI handoff, an agent reassigning it, resolving it, etc. — so every open admin session
+  // reflects it live instead of needing a manual reload.
+  | {
+      type: "conversation";
+      conversationId: string;
+      conversation: {
+        status: "AI" | "PENDING_HANDOFF" | "NEEDS_HUMAN" | "HUMAN" | "RESOLVED";
+        priority: "LOW" | "NORMAL" | "HIGH" | null;
+        assignee: { id: string; name: string; image: string | null } | null;
+        labels: { id: string; name: string; color: string }[];
+      };
+    };
 
 const g = globalThis as unknown as { momoConversationEvents?: EventEmitter };
 export const conversationEvents = g.momoConversationEvents ?? new EventEmitter().setMaxListeners(0);

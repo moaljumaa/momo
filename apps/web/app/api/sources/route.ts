@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@momo/db";
 import { ingestQueue } from "@momo/core/queue";
+import { sameOrigin } from "@momo/core/safe-fetch";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session || session.user.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const sources = await prisma.source.findMany({
     orderBy: { createdAt: "desc" },
@@ -17,7 +18,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session || session.user.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
   const { type, title, url, content, selectedUrls } = body as {
@@ -38,8 +39,13 @@ export async function POST(req: NextRequest) {
     if (selectedUrls.length > 10) {
       return NextResponse.json({ error: "at most 10 pages can be crawled" }, { status: 400 });
     }
-    const origin = new URL(url!).origin;
-    if (selectedUrls.some((u) => !u.startsWith(origin))) {
+    let origin: string;
+    try {
+      origin = new URL(url!).origin;
+    } catch {
+      return NextResponse.json({ error: "invalid url" }, { status: 400 });
+    }
+    if (selectedUrls.some((u) => !sameOrigin(u, origin))) {
       return NextResponse.json({ error: "selectedUrls must all be on the same site" }, { status: 400 });
     }
   }
