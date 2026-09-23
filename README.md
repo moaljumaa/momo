@@ -42,7 +42,7 @@ Open the app and create the first account. It becomes the one and only admin, an
 - Change the default Postgres password in `docker-compose.yml` and keep Postgres and Redis off the public internet.
 - Keep your secrets out of the repo. A secrets manager beats a plaintext `.env` on a server.
 - Behind a reverse proxy, make sure it sets `X-Forwarded-For` so visitor IPs are right.
-- The website crawler refuses private and internal addresses. Set `ALLOW_PRIVATE_URLS=true` only if you really want to crawl an intranet.
+- The website crawler refuses private and internal addresses in production (this stops the app being tricked into probing your network). In development it allows them, so localhost works. Set `ALLOW_PRIVATE_URLS=true` to crawl an intranet or a staging box in production.
 - Visitor country lookup is off by default because it calls a third party. Set `GEOIP_LOOKUP=true` to turn it on.
 - Uploaded files live in `UPLOADS_DIR`. Point it at a persistent volume.
 

@@ -5,10 +5,15 @@ import { Agent, fetch } from "undici";
 // fetch() for user-supplied URLs (crawler, branding). Blocks requests to private, loopback
 // and link-local addresses (SSRF, e.g. cloud metadata at 169.254.169.254). The check runs on
 // the address the socket actually connects to, so DNS rebinding can't swap it after the fact,
-// and every redirect hop is re-checked. Set ALLOW_PRIVATE_URLS=true to crawl an intranet.
+// and every redirect hop is re-checked. See allowPrivate below.
 
 const MAX_REDIRECTS = 5;
-const allowPrivate = () => process.env.ALLOW_PRIVATE_URLS === "true";
+// Local and private URLs are allowed while developing (so you can point it at localhost) and
+// blocked in production unless ALLOW_PRIVATE_URLS=true. ALLOW_PRIVATE_URLS=false forces the block.
+const allowPrivate = () => {
+  const v = process.env.ALLOW_PRIVATE_URLS;
+  return v ? v === "true" : process.env.NODE_ENV !== "production";
+};
 
 function isPrivateIp(ip: string): boolean {
   if (ip.includes(":")) {
