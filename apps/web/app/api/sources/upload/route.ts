@@ -4,6 +4,7 @@ import path from "path";
 import { prisma } from "@momo/db";
 import { ingestQueue } from "@momo/core/queue";
 import { ocrPdf } from "@momo/core/ocr";
+import { UPLOADS_DIR } from "@/lib/uploads";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
@@ -16,7 +17,7 @@ const MAX_BYTES = 20 * 1024 * 1024;
 const ACCEPTED = [".pdf", ".doc", ".docx", ".txt"];
 // Self-hosted, single-tenant: originals live on local disk next to the app, not object
 // storage — set UPLOADS_DIR to point at a mounted volume in production.
-const UPLOAD_DIR = process.env.UPLOADS_DIR ?? path.join(process.cwd(), "uploads");
+const UPLOAD_DIR = UPLOADS_DIR;
 
 async function extractText(buffer: Buffer, ext: string): Promise<string> {
   if (ext === ".txt") return buffer.toString("utf8");

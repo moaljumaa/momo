@@ -28,7 +28,9 @@ export async function GET(req: NextRequest) {
         welcomeMessage: settings.welcomeMessage,
         placeholder: settings.placeholder,
         suggestedQuestions: settings.suggestedQuestions as string[],
-        logoUrl: settings.logoUrl,
+        // Uploaded logos are stored as a path on this server; the widget runs on someone
+        // else's site, so it needs the full address.
+        logoUrl: settings.logoUrl?.startsWith("/") ? `${process.env.BETTER_AUTH_URL ?? req.nextUrl.origin}${settings.logoUrl}` : settings.logoUrl,
       },
     },
     { headers: cors },

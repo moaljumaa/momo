@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
+import { publicUploadDir } from "@/lib/uploads";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
-// Profile picture upload — same static-file approach as the logo upload, but open to any
+// Profile picture upload — same storage as the logo upload, but open to any
 // signed-in user since it only ever sets their own image (the client then calls updateUser).
 export const runtime = "nodejs";
 
@@ -14,7 +15,7 @@ const ACCEPTED: Record<string, string> = {
   "image/jpeg": ".jpg",
   "image/webp": ".webp",
 };
-const AVATAR_DIR = path.join(process.cwd(), "public", "uploads", "avatars");
+const AVATAR_DIR = publicUploadDir("avatars");
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });

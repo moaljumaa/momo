@@ -6,8 +6,10 @@ dist
 .env
 .env.*
 !.env.example
+!.env.production.example
 apps/web/uploads
 apps/web/public/uploads
+/uploads
 
 # internal / engineering-only, never committed to open core
 .claude

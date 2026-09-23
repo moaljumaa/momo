@@ -1,0 +1,71 @@
+# Production stack: everything runs in Docker.
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+# Separate from docker-compose.yml (dev: only Postgres + Redis), and it has its own project
+# name and volumes so the two never touch each other's data.
+name: momo-prod
+
+x-app: &app
+  build: .
+  image: momo-app
+  restart: unless-stopped
+  environment: &app-env
+    DATABASE_URL: postgresql://momo:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/momo
+    REDIS_URL: redis://redis:6379
+    BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+    BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET}
+    ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY}
+    OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    ALLOW_PRIVATE_URLS: ${ALLOW_PRIVATE_URLS:-}
+    GEOIP_LOOKUP: ${GEOIP_LOOKUP:-}
+    UPLOADS_DIR: /data/uploads
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: momo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: momo
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U momo"], interval: 3s, retries: 20 }
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redisdata:/data]
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 3s, retries: 20 }
+
+  migrate:
+    <<: *app
+    restart: "no"
+    command: ["pnpm", "--filter", "@momo/db", "exec", "prisma", "migrate", "deploy"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  web:
+    <<: *app
+    ports: ["${WEB_PORT:-3000}:3000"]
+    volumes: [uploads:/data/uploads]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/setup').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  worker:
+    <<: *app
+    command: ["pnpm", "--filter", "@momo/worker", "start"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  redisdata:
+  uploads:

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
+import { publicUploadDir } from "@/lib/uploads";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
 // Manual logo upload for the onboarding wizard's Logo step, alongside the auto-detected
-// candidates. Saved under public/ so it's served as a static file with no extra route —
-// fine for a self-hosted, single-tenant deploy running `next start` off a persistent volume.
+// candidates. Saved in the uploads volume and served by app/uploads/[kind]/[file].
 export const runtime = "nodejs";
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -15,7 +15,7 @@ const ACCEPTED: Record<string, string> = {
   "image/jpeg": ".jpg",
   "image/webp": ".webp",
 };
-const LOGO_DIR = path.join(process.cwd(), "public", "uploads", "logos");
+const LOGO_DIR = publicUploadDir("logos");
 
 export async function POST(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
