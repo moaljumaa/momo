@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ChannelIcon, CHANNEL_LABEL, type ChannelKind } from "./ChannelIcon";
 import { DeployButton } from "./DeployButton";
+import { useSettingsModal } from "@/components/settings-modal-provider";
 
 type Settings = {
   name: string;
@@ -23,7 +23,8 @@ const CHANNELS: { kind: ChannelKind; available: boolean }[] = [
   { kind: "help-page", available: false },
 ];
 
-export default function ChannelsPage() {
+export function ChannelsPanel() {
+  const { close } = useSettingsModal();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -65,23 +66,31 @@ export default function ChannelsPage() {
   if (!settings) return null;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden p-8">
-      <div className="mx-auto flex w-full max-w-3xl shrink-0 items-center justify-between">
-        <h1 className="text-2xl font-light">Channels</h1>
+    <>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-normal">Channels</h2>
         <div className="flex items-center gap-3">
           {saving && <span className="text-xs font-light text-faint">Saving…</span>}
           {!saving && saved && <span className="text-xs font-light text-faint">Saved</span>}
         </div>
       </div>
 
-      <div className="mx-auto mt-8 flex w-full max-w-3xl flex-col gap-3 overflow-y-auto">
+      <div className="mt-6 grid grid-cols-2 gap-4">
         {CHANNELS.map(({ kind, available }) => (
           <div
             key={kind}
-            className="flex items-center gap-4 rounded-[1.25rem] border border-line px-5 py-4"
+            className="flex flex-col gap-4 rounded-[1.25rem] border border-line bg-well p-5"
           >
-            <ChannelIcon kind={kind} />
-            <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <ChannelIcon kind={kind} />
+              {available && kind === "website-widget" && (
+                <Switch
+                  checked={settings.widgetEnabled}
+                  onCheckedChange={(v) => save({ widgetEnabled: v as boolean })}
+                />
+              )}
+            </div>
+            <div>
               <div className="text-sm font-normal">{CHANNEL_LABEL[kind]}</div>
               <div className="text-xs font-light text-faint">
                 {!available
@@ -93,19 +102,23 @@ export default function ChannelsPage() {
             </div>
 
             {available && kind === "website-widget" && (
-              <>
-                <Switch
-                  checked={settings.widgetEnabled}
-                  onCheckedChange={(v) => save({ widgetEnabled: v as boolean })}
-                />
-                <Button variant="outline" onClick={() => setDomainsOpen(true)} className="rounded-full px-4">
+              <div className="mt-auto flex flex-wrap items-center gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setDomainsOpen(true)}
+                  className="rounded-full border-line bg-transparent px-3 text-xs text-ink hover:bg-hover"
+                >
                   Domains
                 </Button>
-                <Button variant="outline" className="rounded-full px-4" render={<Link href="/playground" />}>
+                <Button
+                  variant="outline"
+                  onClick={close}
+                  className="rounded-full border-line bg-transparent px-3 text-xs text-ink hover:bg-hover"
+                >
                   Configure
                 </Button>
                 <DeployButton />
-              </>
+              </div>
             )}
           </div>
         ))}
@@ -128,6 +141,6 @@ export default function ChannelsPage() {
           />
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.34.4",
   "scripts": {
-    "dev": "docker compose up",
+    "dev": "docker compose up -d && turbo run dev",
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck"

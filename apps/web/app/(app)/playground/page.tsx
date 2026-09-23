@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { ConfigPanel } from "./ConfigPanel";
 import type { DisplaySettings } from "./ConfigPanel";
 import { PLACEHOLDER_MAX } from "./constants";
-import { ChannelIcon, CHANNEL_LABEL, type ChannelKind } from "../channels/ChannelIcon";
+import { CHANNEL_LABEL, type ChannelKind } from "../channels/ChannelIcon";
 import { DeployButton } from "../channels/DeployButton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RotateCcw, ArrowUp } from "lucide-react";
+import { RotateCcw, ArrowUp, Globe } from "lucide-react";
 
 type Msg = {
   role: "VISITOR" | "AI";
@@ -93,12 +93,12 @@ export default function Playground() {
       <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden p-8">
         <div className="flex shrink-0 items-center justify-between gap-3">
           <Select value={channel} onValueChange={(v) => setChannel(v as ChannelKind)}>
-            <SelectTrigger className="h-10 w-56 gap-2 bg-sheet">
+            <SelectTrigger className="h-9 w-48 gap-2">
               <SelectValue>
                 {(value: ChannelKind) => (
-                  <span className="flex items-center gap-2">
-                    <ChannelIcon kind={value} className="size-6" />
-                    {CHANNEL_LABEL[value]}
+                  <span className="flex items-center gap-2 text-faint">
+                    <Globe className="size-4" />
+                    <span className="text-ink">{CHANNEL_LABEL[value]}</span>
                   </span>
                 )}
               </SelectValue>
@@ -106,7 +106,6 @@ export default function Playground() {
             <SelectContent>
               {CHANNELS.map(({ kind, available }) => (
                 <SelectItem key={kind} value={kind} disabled={!available}>
-                  <ChannelIcon kind={kind} className="size-6" />
                   {CHANNEL_LABEL[kind]}
                   {!available && <span className="ml-1 text-xs font-light text-faint">Soon</span>}
                 </SelectItem>

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { InstructionsForm } from "../instructions/InstructionsForm";
 import { SourceTypeIcon, SOURCE_LABEL, type SourceKind } from "../sources/SourceTypeIcon";
+import { useSettingsModal } from "@/components/settings-modal-provider";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { X, Plus, ChevronDown } from "lucide-react";
@@ -398,6 +398,7 @@ const statusDot: Record<Source["status"], string> = {
 
 function SourcesTab() {
   const [sources, setSources] = useState<Source[] | null>(null);
+  const { open } = useSettingsModal();
 
   useEffect(() => {
     fetch("/api/sources")
@@ -409,27 +410,27 @@ function SourcesTab() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="text-sm font-normal">Data sources</div>
-        <Link href="/sources" className="text-xs font-light text-faint underline decoration-dotted">
+        <button onClick={() => open("sources")} className="text-xs font-light text-faint underline decoration-dotted">
           Manage
-        </Link>
+        </button>
       </div>
 
       {sources?.length === 0 && (
         <p className="text-xs font-light text-faint">
-          No sources yet. Add one from the{" "}
-          <Link href="/sources" className="underline decoration-dotted">
+          No sources yet. Add one from{" "}
+          <button onClick={() => open("sources")} className="underline decoration-dotted">
             Data sources
-          </Link>{" "}
-          page.
+          </button>
+          .
         </p>
       )}
 
       <div className="flex flex-col gap-2">
         {sources?.map((s) => (
-          <Link
+          <button
             key={s.id}
-            href="/sources"
-            className="flex items-center gap-3 rounded-[1rem] border border-line px-4 py-3 transition-colors hover:bg-hover"
+            onClick={() => open("sources")}
+            className="flex items-center gap-3 rounded-[1rem] border border-line px-4 py-3 text-left transition-colors hover:bg-hover"
           >
             <SourceTypeIcon type={s.type} />
             <div className="min-w-0 flex-1">
@@ -437,7 +438,7 @@ function SourcesTab() {
               <div className="text-xs font-light text-faint">{SOURCE_LABEL[s.type]}</div>
             </div>
             <span className={`size-1.5 shrink-0 rounded-full ${statusDot[s.status]}`} />
-          </Link>
+          </button>
         ))}
       </div>
     </div>

@@ -17,7 +17,7 @@ export function ChannelIcon({ kind, className }: { kind: ChannelKind; className?
   const Icon = ICON[kind];
   return (
     <span
-      className={`flex size-7 shrink-0 items-center justify-center rounded-full border border-line bg-well text-soft ${className ?? ""}`}
+      className={`flex size-9 shrink-0 items-center justify-center rounded-full border border-line bg-sheet text-faint ${className ?? ""}`}
     >
       <Icon className="size-3.5" />
     </span>

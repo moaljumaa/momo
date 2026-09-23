@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 
 type Msg = {
-  role: "VISITOR" | "AI";
+  id?: string;
+  role: "VISITOR" | "AI" | "AGENT";
   content: string;
   confidence?: number | null;
   sources?: { sourceId: string; snippet: string }[];
   handoff?: boolean;
+  agentName?: string;
 };
 
 type Config = {
@@ -38,8 +40,10 @@ export function App({ apiBase }: { apiBase: string }) {
   );
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [agentTyping, setAgentTyping] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     fetch(`${apiBase}/api/widget/config`)
@@ -47,6 +51,33 @@ export function App({ apiBase }: { apiBase: string }) {
       .then((d) => setConfig(d.config))
       .catch(() => setConfig(null));
   }, [apiBase]);
+
+  // Live channel for an agent's reply/typing status once a conversation exists — lets a
+  // human agent reach the visitor from the admin Conversations page without the visitor
+  // having to send another message first.
+  useEffect(() => {
+    if (!conversationId) return;
+    const source = new EventSource(`${apiBase}/api/widget/events?conversationId=${conversationId}`);
+    source.onmessage = (e) => {
+      const event = JSON.parse(e.data);
+      if (event.type === "typing") {
+        setAgentTyping(event.agentName);
+        window.clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = window.setTimeout(() => setAgentTyping(null), 3000);
+        return;
+      }
+      if (event.type === "message" && event.message.role === "AGENT") {
+        setAgentTyping(null);
+        setOpen(true);
+        setMessages((m) =>
+          m.some((existing) => existing.id === event.message.id)
+            ? m
+            : [...m, { id: event.message.id, role: "AGENT", content: event.message.content, agentName: event.message.agent?.name }],
+        );
+      }
+    };
+    return () => source.close();
+  }, [apiBase, conversationId]);
 
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" });
@@ -72,6 +103,7 @@ export function App({ apiBase }: { apiBase: string }) {
   function restart() {
     setMessages([]);
     setConversationId(undefined);
+    setAgentTyping(null);
     sessionStorage.removeItem(STORAGE_KEY);
     inputRef.current?.focus();
   }
@@ -87,7 +119,16 @@ export function App({ apiBase }: { apiBase: string }) {
       const res = await fetch(`${apiBase}/api/widget/chat`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ conversationId, message: text }),
+        body: JSON.stringify({
+          conversationId,
+          message: text,
+          visitor: {
+            language: navigator.language,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            referrer: document.referrer || null,
+            pageUrl: location.href,
+          },
+        }),
       });
       const data = await res.json();
       if (data.conversationId) {
@@ -163,6 +204,7 @@ export function App({ apiBase }: { apiBase: string }) {
               </p>
             ) : (
               <div key={i} class="momo-a">
+                {m.role === "AGENT" && <p class="momo-meta">{m.agentName ?? "Agent"}</p>}
                 <p>{m.content}</p>
                 <div class="momo-meta">
                   {typeof m.confidence === "number" && (
@@ -184,6 +226,13 @@ export function App({ apiBase }: { apiBase: string }) {
 
           {sending && (
             <div class="momo-think" aria-label="Thinking">
+              <i />
+              <i />
+              <i />
+            </div>
+          )}
+          {!sending && agentTyping && (
+            <div class="momo-think" aria-label={`${agentTyping} is typing`}>
               <i />
               <i />
               <i />

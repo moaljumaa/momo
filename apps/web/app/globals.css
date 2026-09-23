@@ -18,6 +18,9 @@
     --color-clay: var(--clay);
     --color-ember: var(--ember);
     --color-ember-deep: var(--ember-deep);
+    --color-accent-orange: var(--accent-orange);
+    --color-accent-orange-line: var(--accent-orange-line);
+    --color-accent-blue: var(--accent-blue);
     --font-heading: var(--font-sans);
     --font-sans: var(--font-sans);
     --color-sidebar-ring: var(--sidebar-ring);
@@ -60,23 +63,29 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Mist theme. Source of truth: docs/design.md. Widget mirror: packages/widget/src/theme.css */
+/* Mist theme. Source of truth: docs/design.md. Widget mirror: packages/widget/src/theme.css
+   Single fixed dark palette (no light/dark toggle) — two near-black shades (bg/well
+   darker than sheet) plus an orange accent for active/selected states and a blue
+   accent for links/focus, matching the app's settings-modal chrome. */
 :root {
-    --bg: #E3DCC9;
-    --sheet: #F2EDE0;
-    --well: #D9CEB5;
-    --ink: #23262B;
-    --soft: #7B7F84;
-    --faint: #A9ACAF;
-    --line: #CBBFA0;
-    --edge: #B7A67F;
-    --hover: #D6CBAF;
-    --sky: #7C9DB8;
-    --sky-deep: #5F84A0;
-    --wheat: #D2BC80;
-    --clay: #C99A8A;
-    --ember: #D9542F;
-    --ember-deep: #B8431F;
+    --bg: #1A1A19;
+    --sheet: #202020;
+    --well: #151515;
+    --ink: #ECEAE5;
+    --soft: #9A9EA3;
+    --faint: #63676C;
+    --line: #2E2E2C;
+    --edge: #3A3A38;
+    --hover: #383838;
+    --sky: #2871C9;
+    --sky-deep: #1F5AA0;
+    --wheat: #D6C285;
+    --clay: #D2A090;
+    --ember: #E37354;
+    --ember-deep: #C85A3A;
+    --accent-orange: #311A00;
+    --accent-orange-line: #633E00;
+    --accent-blue: #2871C9;
 
     --background: var(--bg);
     --foreground: var(--ink);
@@ -85,7 +94,7 @@
     --popover: var(--sheet);
     --popover-foreground: var(--ink);
     --primary: var(--ember);
-    --primary-foreground: var(--sheet);
+    --primary-foreground: #FBF8F5;
     --secondary: var(--hover);
     --secondary-foreground: var(--ink);
     --muted: var(--hover);
@@ -102,10 +111,10 @@
     --chart-4: var(--soft);
     --chart-5: var(--faint);
     --radius: 1.875rem;
-    --sidebar: var(--bg);
+    --sidebar: var(--well);
     --sidebar-foreground: var(--ink);
     --sidebar-primary: var(--ink);
-    --sidebar-primary-foreground: var(--sheet);
+    --sidebar-primary-foreground: var(--well);
     --sidebar-accent: var(--hover);
     --sidebar-accent-foreground: var(--ink);
     --sidebar-border: var(--line);
@@ -115,37 +124,34 @@
     --ease-enter: cubic-bezier(.2, .7, .2, 1);
 }
 
-.dark {
-    --bg: #1A1712;
-    --sheet: #221E17;
-    --well: #17140F;
-    --ink: #ECEAE5;
-    --soft: #9A9EA3;
-    --faint: #63676C;
-    --line: #322C21;
-    --edge: #4A4030;
-    --hover: #2A251C;
-    --sky: #8FB0CB;
-    --sky-deep: #6F93AF;
-    --wheat: #D6C285;
-    --clay: #D2A090;
-    --ember: #E37354;
-    --ember-deep: #C85A3A;
-    --primary: var(--ember);
-    --primary-foreground: #FBF8F5;
-    --sidebar-primary-foreground: var(--bg);
-    --ring: var(--sky-deep);
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: var(--edge) transparent;
     }
   body {
     @apply bg-background text-foreground;
     }
   html {
     @apply font-sans font-light;
+    }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+    }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+    }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--edge);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--soft);
+    background-clip: padding-box;
     }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }

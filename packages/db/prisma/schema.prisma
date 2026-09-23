@@ -23,6 +23,8 @@ model User {
   accounts      Account[]
   tickets       Ticket[]
   messages      Message[]
+  assignedConversations Conversation[] @relation("ConversationAssignee")
+  participatingIn       Conversation[] @relation("ConversationParticipants")
 
   @@map("user")
 }
@@ -174,13 +176,42 @@ model Contact {
   conversations Conversation[]
 }
 
+model Label {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  color         String         @default("#7C9DB8")
+  createdAt     DateTime       @default(now())
+  conversations Conversation[]
+}
+
 model Conversation {
-  id        String             @id @default(cuid())
-  contactId String?
-  contact   Contact?           @relation(fields: [contactId], references: [id])
-  status    ConversationStatus @default(AI)
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  id           String             @id @default(cuid())
+  contactId    String?
+  contact      Contact?           @relation(fields: [contactId], references: [id])
+  status       ConversationStatus @default(AI)
+  priority     Priority?
+  // Null while the AI owns the conversation; set once a human agent takes over or replies.
+  assigneeId   String?
+  assignee     User?              @relation("ConversationAssignee", fields: [assigneeId], references: [id])
+  // Agents who have replied to or opened this conversation — shown in the sidebar,
+  // distinct from the single assignee who owns it.
+  participants User[]             @relation("ConversationParticipants")
+  labels       Label[]
+
+  // Visitor signals captured from the widget on the first message of the conversation:
+  // IP-geolocated country/city (via ip-api.com) plus plain browser data — nothing here
+  // requires a pre-chat identity form.
+  visitorCountry   String?
+  visitorCity      String?
+  visitorIp        String?
+  visitorUserAgent String?
+  visitorLanguage  String?
+  visitorTimezone  String?
+  visitorReferrer  String?
+  visitorPageUrl   String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   messages  Message[]
   ticket    Ticket?
 
