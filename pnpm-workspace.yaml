@@ -7,3 +7,6 @@ onlyBuiltDependencies:
   - prisma
   - esbuild
   - sharp
+overrides:
+  postcss: ">=8.5.23"
+  mysql2: ">=3.23.1"

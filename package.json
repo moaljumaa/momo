@@ -10,8 +10,8 @@
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {
-    "@types/node": "^26.6.2",
-    "turbo": "^2.11.2",
+    "@types/node": "^26.6.5",
+    "turbo": "^2.11.7",
     "typescript": "^6.0.3"
   }
 }

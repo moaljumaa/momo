@@ -60,13 +60,13 @@ pnpm --filter @momo/worker dev   # second terminal, handles ingestion
 
 ## License
 
-momo is source available under the [PolyForm Internal Use License 1.0.0](LICENSE).
+momo is fair-code, released under the [Sustainable Use License](LICENSE) (the same model n8n uses). The source is open and free to self-host.
 
-In plain words: you can use it and change it for your own company or personal projects. You can not sell it, resell it, host it for other people, or hand copies to anyone else. If you want to do any of that, talk to me.
+In plain words: you can use and modify it for your own internal business or personal projects, and share it free of charge for non-commercial purposes. You can't sell it, resell it, or host it as a service for other people. If you want to do any of that, talk to me.
 
 ## Contributing
 
-Pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first, every contribution needs to agree to the [CLA](CLA.md).
+Pull requests are welcome. Please also follow our [Code of Conduct](CODE_OF_CONDUCT.md); report security issues per [SECURITY.md](SECURITY.md). Please read [CONTRIBUTING.md](CONTRIBUTING.md) first, every contribution needs to agree to the [CLA](CLA.md).
 
 ## Security
 
