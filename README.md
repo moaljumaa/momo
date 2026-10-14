@@ -6,6 +6,12 @@ momo learns your website and documents, answers your visitors like a person who 
 
 I think the way websites talk to their visitors is broken, and this is my attempt at rethinking it from scratch. This is only the first version. There is a lot more coming.
 
+![The widget answering a visitor and handing off to the team](assets/widget.jpg)
+
+![The live inbox with the handoff summary](assets/inbox.jpg)
+
+![The playground, where you test answers before going live](assets/playground.jpg)
+
 ## What you get today
 
 - Answers grounded in your own website, PDFs, Word files, text and Q&A
